@@ -2,16 +2,13 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import "@openzeppelin/contracts/utils/Strings.sol";
-
 import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Pausable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
@@ -117,12 +114,9 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
     }
 
     function safeMint(address to, uint256 tokenId, string memory uri) public onlyRole(MINTER_ROLE) {
-        // Cria a TBA automaticamente no mint
-        _createTba(tokenId);
-        // Cria NFT e associa URI
+        _createTba(tokenId); // Cria a TBA primeiro
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, uri);
-
         emit CardMinted(to, tokenId);
     }
 
@@ -276,7 +270,7 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
     /// @param tokenId          ID do cartão (HeroCard)
     /// @param nftContract      Endereço do contrato ERC-721 a depositar
     /// @param nftTokenId       ID do NFT a depositar
-    function depositERC721(uint256 tokenId, address nftContract, uint256 nftTokenId) external {
+    function depositERC721(uint256 tokenId, address nftContract, uint256 nftTokenId) external nonReentrant {
         _requireOwned(tokenId);
         address tba = _getOrCreateTba(tokenId);
 
@@ -289,7 +283,7 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
     /// @param tokenContract    Endereço do contrato ERC-1155
     /// @param assetTokenId     ID do token ERC-1155
     /// @param amount           Quantidade a depositar
-    function depositERC1155(uint256 tokenId, address tokenContract, uint256 assetTokenId, uint256 amount) external {
+    function depositERC1155(uint256 tokenId, address tokenContract, uint256 assetTokenId, uint256 amount) external nonReentrant {
         _requireOwned(tokenId);
         address tba = _getOrCreateTba(tokenId);
 
