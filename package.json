@@ -1,0 +1,17 @@
+{
+  "name": "herocard-erc6551-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "interact": "ts-node --esm scripts/interact.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ethers": "^5.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
