@@ -1,6 +1,6 @@
-# HeroCard — Sistema ERC-6551 (Token Bound Accounts)
+# HeroCard — ERC-6551 Token Bound Accounts
 
-Projeto Foundry completo implementando o padrão **ERC-6551 (Token Bound Accounts)** para criar cartões virtuais NFT (ERC-721) que possuem sua própria carteira inteligente — capaz de acumular ETH, ERC-20, ERC-721 e ERC-1155.
+Projeto **Foundry** que implementa o padrão [ERC-6551](https://eips.ethereum.org/EIPS/eip-6551) para criar cartões virtuais NFT (ERC-721) com carteira inteligente própria — capaz de acumular ETH, ERC-20, ERC-721 e ERC-1155.
 
 ---
 
@@ -8,7 +8,7 @@ Projeto Foundry completo implementando o padrão **ERC-6551 (Token Bound Account
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        HeroCard (ERC-721)                   │
+│                     HeroCard (ERC-721)                      │
 │                                                             │
 │  mint() ──► cria TBA automaticamente via ERC6551Registry    │
 │                                                             │
@@ -17,15 +17,16 @@ Projeto Foundry completo implementando o padrão **ERC-6551 (Token Bound Account
 │  HeroCard #N ──► TBA-N (ERC6551Account)                     │
 └─────────────────────────────────────────────────────────────┘
                           │
-              ┌───────────▼──────────────-┐
-              │   ERC6551Registry          │
-              │   (CREATE2 determinístico) │
+              ┌───────────▼───────────────┐
+              │     ERC6551Registry        │
+              │  (CREATE2 determinístico) │
               └───────────────────────────┘
                           │
-         ┌────────────────▼────────────────-┐
+         ┌────────────────▼────────────────┐
          │        ERC6551Account            │
          │                                  │
-         │  - Recebe ETH, ERC-20, ERC-721   │
+         │  - Recebe ETH, ERC-20, ERC-721,  │
+         │    ERC-1155                       │
          │  - execute() para qualquer call  │
          │  - owner = ownerOf(NFT vinculado)│
          │  - isValidSigner() / ERC-1271    │
@@ -37,8 +38,8 @@ Projeto Foundry completo implementando o padrão **ERC-6551 (Token Bound Account
 | Arquivo | Descrição |
 |---|---|
 | `src/interfaces/IERC6551Registry.sol` | Interface do registry ERC-6551 |
-| `src/interfaces/IERC6551Account.sol` | Interfaces IERC6551Account e IERC6551Executable |
-| `src/ERC6551Registry.sol` | Implementação do registry (CREATE2 determinístico) |
+| `src/interfaces/IERC6551Account.sol` | Interfaces `IERC6551Account` e `IERC6551Executable` |
+| `src/ERC6551Registry.sol` | Registry com CREATE2 determinístico |
 | `src/ERC6551Account.sol` | Token Bound Account — carteira vinculada ao NFT |
 | `src/HeroCard.sol` | NFT ERC-721 com integração completa ERC-6551 |
 | `src/mocks/MockERC20.sol` | Token ERC-20 para testes |
@@ -51,20 +52,19 @@ Projeto Foundry completo implementando o padrão **ERC-6551 (Token Bound Account
 ### Pré-requisitos
 
 - [Foundry](https://book.getfoundry.sh/getting-started/installation) instalado
-- Node.js ≥ 18 (para scripts ethers.js)
+- Node.js ≥ 18 (apenas para o script `scripts/interact.ts`)
 
 ### Instalação
 
 ```bash
-# Clone o repositório
 git clone <repo-url>
 cd card-erc6551
 
-# Instala forge-std e dependências
+# Dependências Solidity
 forge install foundry-rs/forge-std --no-commit
 forge install OpenZeppelin/openzeppelin-contracts --no-commit
 
-# (Opcional) instala dependências Node.js para scripts
+# (Opcional) dependências Node.js para script de interação
 npm install
 ```
 
@@ -79,80 +79,91 @@ forge build
 ## Testes
 
 ```bash
-# Roda todos os testes
+# Executa toda a suite (74 testes)
+forge test
+
+# Com output detalhado
 forge test -vvv
 
-# Roda testes específicos
+# Teste específico
 forge test --match-test test_mint_creates_tba -vvv
 
-# Roda com fuzz (mais iterações)
+# Fuzz com mais iterações
 forge test --fuzz-runs 1000
 
-# Gas report
+# Relatório de gas
 forge test --gas-report
+
+# Cobertura de código
+forge coverage
 ```
 
-### Cobertura dos testes
+### Suite de testes
 
-| Categoria | Testes |
-|---|---|
-| Mint | Mint básico, eventos, criação de TBA, controle de acesso, batch |
-| TBA - Endereço | Determinismo, unicidade por token, isAccountCreated |
-| TBA - Dados | token() retorna chainId/contract/tokenId corretos |
-| ETH | Depósito, saque, controle de acesso |
-| ERC-20 | Depósito, saque |
-| ERC-721 filho | Depósito, saque |
-| Execute | Transferência ETH via TBA, controle de acesso |
-| Transferência | Transferência do NFT transfere controle da TBA |
-| Conta direta | state(), receive(), isValidSigner(), supportsInterface() |
-| AccessControl | setBaseURI() com e sem permissão |
-| Fuzz | Endereços únicos por token, depósito/saque ETH |
+| Arquivo | Testes | Foco |
+|---|---|---|
+| `test/HeroCard.t.sol` | 28 | Fluxos principais + fuzz |
+| `test/HeroCard.branches.t.sol` | 36 | Cobertura de branches (revert paths, casos extremos) |
+| `test/ERC6551Account.t.sol` | 8 | Branches da conta (autorização, assinaturas, interfaces) |
+| `test/ERC6551Registry.t.sol` | 2 | Branches do registry (idempotência, falha no CREATE2) |
+
+### Resultado de cobertura atual
+
+| Contrato | Linhas | Branches | Funções |
+|---|---|---|---|
+| `ERC6551Account.sol` | 100% | **100%** | 100% |
+| `ERC6551Registry.sol` | 100% | **100%** | 100% |
+| `HeroCard.sol` | 99% | **100%** | 96% |
+| `MockERC20.sol` | 100% | 100% | 100% |
+| `MockERC721.sol` | 100% | 100% | 100% |
+
+> Gerado com `forge coverage`. O `script/Deploy.s.sol` é excluído por não ser executado nos testes unitários.
 
 ---
 
 ## Deploy
 
+### Variáveis de ambiente
+
+Copie `.env.example` e preencha:
+
+```bash
+cp .env.example .env
+```
+
+| Variável | Descrição | Obrigatório |
+|---|---|---|
+| `PRIVATE_KEY` | Chave privada do deployer | ✅ |
+| `RPC_URL` | Endpoint RPC da rede alvo | ✅ |
+| `REGISTRY_ADDRESS` | Endereço do registry existente (deixe vazio para deployar um novo) | ❌ |
+| `ETHERSCAN_API_KEY` | Chave para verificação do contrato | ❌ |
+
 ### Testnet (Sepolia)
 
 ```bash
-# Configure variáveis de ambiente
-export PRIVATE_KEY=0x...
-export RPC_URL=https://sepolia.infura.io/v3/SEU_KEY
+source .env
 
-# Deploy completo (usa registry canônico se disponível)
 forge script script/Deploy.s.sol \
   --rpc-url $RPC_URL \
   --broadcast \
   --verify \
-  --etherscan-api-key SEU_ETHERSCAN_KEY
-
-# Para usar o registry canônico ERC-6551 (Sepolia):
-# O endereço 0x000000006551c19487814612e58FE06813775758 já está deployado
-# O script detecta automaticamente e reutiliza
+  --etherscan-api-key $ETHERSCAN_API_KEY
 ```
 
-### Variáveis de ambiente do script
-
-| Variável | Descrição | Padrão |
-|---|---|---|
-| `PRIVATE_KEY` | Chave privada do deployer | obrigatório |
-| `REGISTRY_ADDRESS` | Endereço do registry existente | `0x000...758` (canônico) |
-| `BASE_URI` | URI base para metadados | `https://api.herocard.io/metadata/` |
+> O registry canônico ERC-6551 (`0x000000006551c19487814612e58FE06813775758`) já está deployado na Sepolia. O script o detecta automaticamente e o reutiliza quando disponível.
 
 ---
 
-## Scripts ethers.js
+## Script de interação (ethers.js)
 
 ```bash
-# Configure .env
-cat > .env << EOF
+# Configure o .env com os endereços pós-deploy
 RPC_URL=https://sepolia.infura.io/v3/SEU_KEY
 PRIVATE_KEY=0x...
 HERO_CARD_ADDRESS=0x...
 ERC6551_ACCOUNT_IMPL=0x...
-EOF
 
-# Executa o script de interação
+# Executa
 npm run interact
 ```
 
@@ -160,35 +171,55 @@ npm run interact
 
 ## Conceitos-chave ERC-6551
 
-### Endereço Determinístico da TBA
+### Endereço determinístico da TBA
 
-O endereço de cada TBA é calculado via `CREATE2` usando a combinação:
+O endereço de cada TBA é calculado via `CREATE2`:
 
 ```
 TBA address = CREATE2(
-  salt     = bytes32(0),
-  bytecode = proxy_bytecode + abi.encode(salt, chainId, tokenContract, tokenId)
+  deployer = ERC6551Registry,
+  salt     = bytes32(0),       ← DEFAULT_SALT
+  bytecode = proxy_EIP1167 + abi.encode(salt, chainId, tokenContract, tokenId)
 )
 ```
 
-Isso garante que o endereço é único e previsível para cada NFT.
+Isso garante que o endereço é **único e previsível** para cada NFT, mesmo antes do deploy.
 
-### Controle Dinâmico
+### Controle dinâmico
 
-O owner da TBA é **sempre** o `ownerOf(tokenId)` no momento da chamada — não é gravado em storage. Isso significa:
+O owner da TBA é **sempre** o `ownerOf(tokenId)` avaliado no momento da chamada — não é armazenado em storage. Isso significa:
 
 ```
 Alice compra HeroCard #5
   └─► Alice controla TBA-5 e todos os ativos dentro dela
 
 Alice vende HeroCard #5 para Bob
-  └─► Bob passa a controlar TBA-5 (e todos os ativos!)
+  └─► Bob passa a controlar TBA-5 (incluindo todos os ativos!)
   └─► Alice perde o acesso imediatamente
 ```
 
-### ⚠️ Alerta de Segurança
+### Roles de acesso (HeroCard)
 
-> **ATENÇÃO:** Transferir um HeroCard NFT transfere automaticamente o controle da TBA e de **todos os ativos** que ela contém para o novo proprietário. **Retire seus ativos da TBA antes de vender ou transferir o NFT.**
+| Role | Permissão |
+|---|---|
+| `DEFAULT_ADMIN_ROLE` | Conceder/revogar qualquer role |
+| `MINTER_ROLE` | Mintar novos cartões (`mint`, `mintBatch`) |
+| `PAUSER_ROLE` | Pausar/despausar transferências |
+
+### ⚠️ Alerta de segurança
+
+> **ATENÇÃO:** Transferir um HeroCard NFT transfere automaticamente o controle da TBA e de **todos os ativos** que ela contém para o novo proprietário.
+>
+> **Retire seus ativos da TBA antes de vender ou transferir o NFT.**
+
+---
+
+## Segurança
+
+- **Checks-Effects-Interactions (CEI):** eventos emitidos antes das chamadas externas nos depósitos; `_state` incrementado antes de `execute()` na TBA.
+- **ReentrancyGuard:** todas as funções que realizam chamadas externas são protegidas (`nonReentrant`).
+- **Validação de retorno:** os resultados de `execute()` nos saques são decodificados e validados.
+- **Slither:** auditoria estática realizada; warnings residuais documentados com `slither-disable` justificados.
 
 ---
 
@@ -196,7 +227,7 @@ Alice vende HeroCard #5 para Bob
 
 - [EIP-6551 Specification](https://eips.ethereum.org/EIPS/eip-6551)
 - [Tokenbound Docs](https://docs.tokenbound.org)
-- [RareSkills: ERC-6551 Explicado](https://rareskills.io/post/erc-6551)
 - [ERC6551 Reference Implementation](https://github.com/erc6551/reference)
-- [Registry Deployments](https://docs.tokenbound.org/contracts/deployments)
+- [Registry Canônico — Deployments](https://docs.tokenbound.org/contracts/deployments)
 - [OpenZeppelin Contracts v5](https://docs.openzeppelin.com/contracts/5.x/)
+- [Foundry Book](https://book.getfoundry.sh/)
