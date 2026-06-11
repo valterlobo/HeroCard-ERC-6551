@@ -35,7 +35,6 @@ import "./interfaces/IERC6551Registry.sol";
 ///          [109..140] tokenContract (padded)  (32 bytes)
 ///          [141..172] tokenId                 (32 bytes)
 contract ERC6551Registry is IERC6551Registry {
-
     // =========================================================================
     // IERC6551Registry
     // =========================================================================
@@ -62,22 +61,17 @@ contract ERC6551Registry is IERC6551Registry {
 
         if (accountAddress == address(0)) revert AccountCreationFailed();
 
-        emit ERC6551AccountCreated(
-            accountAddress, implementation, salt, chainId, tokenContract, tokenId
-        );
+        emit ERC6551AccountCreated(accountAddress, implementation, salt, chainId, tokenContract, tokenId);
     }
 
     /// @inheritdoc IERC6551Registry
     /// @dev Puramente view — não altera estado. Pode ser chamado antes do deploy.
-    function account(
-        address implementation,
-        bytes32 salt,
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId
-    ) external view returns (address) {
-        bytes32 bytecodeHash =
-            keccak256(_creationCode(implementation, chainId, tokenContract, tokenId, salt));
+    function account(address implementation, bytes32 salt, uint256 chainId, address tokenContract, uint256 tokenId)
+        external
+        view
+        returns (address)
+    {
+        bytes32 bytecodeHash = keccak256(_creationCode(implementation, chainId, tokenContract, tokenId, salt));
         return Create2Lib.computeAddress(salt, bytecodeHash);
     }
 
@@ -129,21 +123,13 @@ contract ERC6551Registry is IERC6551Registry {
 ///      caso ambas sejam importadas no mesmo arquivo de teste.
 library Create2Lib {
     /// @notice Calcula o endereço CREATE2 usando address(this) como deployer.
-    function computeAddress(bytes32 salt, bytes32 bytecodeHash)
-        internal
-        view
-        returns (address)
-    {
+    function computeAddress(bytes32 salt, bytes32 bytecodeHash) internal view returns (address) {
         return computeAddress(salt, bytecodeHash, address(this));
     }
 
     /// @notice Calcula o endereço CREATE2 com deployer explícito.
     /// @dev Implementa: keccak256(0xff ++ deployer ++ salt ++ bytecodeHash)[12:]
-    function computeAddress(bytes32 salt, bytes32 bytecodeHash, address deployer)
-        internal
-        pure
-        returns (address addr)
-    {
+    function computeAddress(bytes32 salt, bytes32 bytecodeHash, address deployer) internal pure returns (address addr) {
         assembly {
             // Usa scratch space (0x00..0x3f) para montar os 85 bytes:
             //   [0]:      0xff
@@ -153,10 +139,10 @@ library Create2Lib {
             let ptr := mload(0x40)
             mstore8(ptr, 0xff)
             mstore(add(ptr, 0x01), shl(0x60, deployer)) // coloca deployer nos 20 bytes altos
-            mstore(add(ptr, 0x15), salt)                 // salt nos bytes [21..52]
-            mstore(add(ptr, 0x35), bytecodeHash)         // hash nos bytes [53..84]
+            mstore(add(ptr, 0x15), salt) // salt nos bytes [21..52]
+            mstore(add(ptr, 0x35), bytecodeHash) // hash nos bytes [53..84]
             addr := and(
-                keccak256(ptr, 0x55),                    // hash de 85 bytes
+                keccak256(ptr, 0x55), // hash de 85 bytes
                 0xffffffffffffffffffffffffffffffffffffffff // máscara para 20 bytes de address
             )
         }

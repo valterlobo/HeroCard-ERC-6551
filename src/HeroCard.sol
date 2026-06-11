@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "@openzeppelin/contracts/utils/Strings.sol";
+
 import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Pausable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
@@ -115,13 +117,12 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
     }
 
     function safeMint(address to, uint256 tokenId, string memory uri) public onlyRole(MINTER_ROLE) {
-
+        // Cria a TBA automaticamente no mint
+        _createTba(tokenId);
+        // Cria NFT e associa URI
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, uri);
 
-        // Cria a TBA automaticamente no mint
-        _createTba(tokenId);
-        
         emit CardMinted(to, tokenId);
     }
 

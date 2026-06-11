@@ -13,8 +13,14 @@ import "../src/mocks/MockERC721.sol";
 // ---------------------------------------------------------------------------
 contract RevertOnReceive {
     error Rejected();
-    receive() external payable { revert Rejected(); }
-    fallback() external payable { revert Rejected(); }
+
+    receive() external payable {
+        revert Rejected();
+    }
+
+    fallback() external payable {
+        revert Rejected();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -22,6 +28,7 @@ contract RevertOnReceive {
 // ---------------------------------------------------------------------------
 contract MockSigner {
     bytes4 private constant _MAGIC = 0x1626ba7e;
+
     function isValidSignature(bytes32, bytes memory) external pure returns (bytes4) {
         return _MAGIC;
     }
@@ -30,33 +37,32 @@ contract MockSigner {
 /// @title ERC6551AccountTest
 /// @notice Testes de cobertura de branches do ERC6551Account
 contract ERC6551AccountTest is Test {
-
     // ── contratos ────────────────────────────────────────────────────────────
     ERC6551Registry public registry;
-    ERC6551Account  public accountImpl;
-    HeroCard        public heroCard;
-    MockERC20       public gold;
-    MockERC721      public sword;
+    ERC6551Account public accountImpl;
+    HeroCard public heroCard;
+    MockERC20 public gold;
+    MockERC721 public sword;
 
     // ── atores ───────────────────────────────────────────────────────────────
-    address public owner  = makeAddr("owner");
-    address public alice  = makeAddr("alice");
-    address public bob    = makeAddr("bob");
+    address public owner = makeAddr("owner");
+    address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
     address public minter = makeAddr("minter");
 
     // ── setup ────────────────────────────────────────────────────────────────
     function setUp() public {
         vm.startPrank(owner);
-        registry    = new ERC6551Registry();
+        registry = new ERC6551Registry();
         accountImpl = new ERC6551Account();
-        heroCard    = new HeroCard(address(registry), address(accountImpl));
+        heroCard = new HeroCard(address(registry), address(accountImpl));
         heroCard.grantRole(heroCard.MINTER_ROLE(), minter);
-        gold  = new MockERC20("Gold Token", "GOLD");
+        gold = new MockERC20("Gold Token", "GOLD");
         sword = new MockERC721("Sword NFT", "SWORD");
         vm.stopPrank();
 
         vm.deal(alice, 100 ether);
-        vm.deal(bob,   10 ether);
+        vm.deal(bob, 10 ether);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -132,14 +138,12 @@ contract ERC6551AccountTest is Test {
     function test_account_isValidSignature_valid() public {
         // Criar chave privada determinística
         uint256 privKey = 0xA11CE;
-        address signer  = vm.addr(privKey);
+        address signer = vm.addr(privKey);
 
         // Minta para o signer (para que ele seja owner)
         vm.prank(minter);
         uint256 tokenId = heroCard.mint(signer, "");
-        ERC6551Account tba = ERC6551Account(payable(
-            heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())
-        ));
+        ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Criar hash e assinar com a chave privada do owner
         bytes32 hash = keccak256("mensagem de teste");
@@ -156,15 +160,13 @@ contract ERC6551AccountTest is Test {
 
     /// @notice Assinatura de não-owner deve retornar valor inválido (ERC-1271)
     function test_account_isValidSignature_invalid() public {
-        uint256 privKey   = 0xA11CE;
-        uint256 wrongKey  = 0xB0B;
-        address signer    = vm.addr(privKey);
+        uint256 privKey = 0xA11CE;
+        uint256 wrongKey = 0xB0B;
+        address signer = vm.addr(privKey);
 
         vm.prank(minter);
         uint256 tokenId = heroCard.mint(signer, "");
-        ERC6551Account tba = ERC6551Account(payable(
-            heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())
-        ));
+        ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         bytes32 hash = keccak256("mensagem de teste");
         // Assina com chave errada
@@ -188,10 +190,7 @@ contract ERC6551AccountTest is Test {
         assertFalse(tba.supportsInterface(unknown), "interface desconhecida deve retornar false");
 
         // IERC6551Executable (não coberto nos testes anteriores)
-        assertTrue(
-            tba.supportsInterface(type(IERC6551Executable).interfaceId),
-            "deve suportar IERC6551Executable"
-        );
+        assertTrue(tba.supportsInterface(type(IERC6551Executable).interfaceId), "deve suportar IERC6551Executable");
     }
 
     // =========================================================================
@@ -208,7 +207,11 @@ contract ERC6551AccountTest is Test {
 
         // withdrawEth chama tba.execute() com msg.sender == address(heroCard)
         vm.prank(alice);
-        heroCard.withdrawEth(/* tokenId */ 0, payable(bob), 1 ether);
+        heroCard.withdrawEth( /* tokenId */
+            0,
+            payable(bob),
+            1 ether
+        );
 
         assertEq(bob.balance, bobBefore + 1 ether);
         // state deve ter incrementado

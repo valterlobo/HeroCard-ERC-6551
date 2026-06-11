@@ -45,7 +45,7 @@ contract ERC6551Account is
     IERC6551Account,
     IERC6551Executable,
     ERC721Holder,
-    ERC1155Holder,   // ERC1155Holder herda de ERC165, que implementa IERC165
+    ERC1155Holder, // ERC1155Holder herda de ERC165, que implementa IERC165
     ReentrancyGuard
 {
     // =========================================================================
@@ -53,9 +53,7 @@ contract ERC6551Account is
     // =========================================================================
 
     /// @notice Emitido quando a TBA executa uma transação
-    event TransactionExecuted(
-        address indexed to, uint256 value, bytes data, uint8 operation
-    );
+    event TransactionExecuted(address indexed to, uint256 value, bytes data, uint8 operation);
 
     // =========================================================================
     // Constantes
@@ -64,7 +62,7 @@ contract ERC6551Account is
     /// @dev ERC-1271: magic value para assinatura válida
     bytes4 private constant _ERC1271_MAGIC_VALUE = 0x1626ba7e;
     /// @dev ERC-1271: valor para assinatura inválida
-    bytes4 private constant _ERC1271_INVALID     = 0xffffffff;
+    bytes4 private constant _ERC1271_INVALID = 0xffffffff;
 
     /// @dev ERC-6551: magic value para signer válido
     bytes4 private constant _ERC6551_VALID_SIGNER = 0x523e3260;
@@ -82,10 +80,10 @@ contract ERC6551Account is
     //   [109..140] tokenContract (padded to 32)      32 bytes  -> 0x20 + 109 = 0x8d
     //   [141..172] tokenId                           32 bytes  -> 0x20 + 141 = 0xad
     // =========================================================================
-    uint256 private constant _OFFSET_SALT          = 0x4d; // 0x20 + 45
-    uint256 private constant _OFFSET_CHAIN_ID      = 0x6d; // 0x20 + 77
+    uint256 private constant _OFFSET_SALT = 0x4d; // 0x20 + 45
+    uint256 private constant _OFFSET_CHAIN_ID = 0x6d; // 0x20 + 77
     uint256 private constant _OFFSET_TOKEN_CONTRACT = 0x8d; // 0x20 + 109
-    uint256 private constant _OFFSET_TOKEN_ID      = 0xad; // 0x20 + 141
+    uint256 private constant _OFFSET_TOKEN_ID = 0xad; // 0x20 + 141
 
     // =========================================================================
     // Storage
@@ -129,33 +127,20 @@ contract ERC6551Account is
     ///        code pointer -> word com length (32 bytes) + dados do runtime
     ///        mload(add(code, _OFFSET_CHAIN_ID)) lê 32 bytes a partir do offset correto
     /// @inheritdoc IERC6551Account
-    function token()
-        public
-        view
-        override
-        returns (uint256 chainId, address tokenContract, uint256 tokenId)
-    {
+    function token() public view override returns (uint256 chainId, address tokenContract, uint256 tokenId) {
         bytes memory code = address(this).code;
         assembly {
             // Cada offset inclui 0x20 (32 bytes) para pular o length slot da bytes memory
-            chainId       := mload(add(code, _OFFSET_CHAIN_ID))
+            chainId := mload(add(code, _OFFSET_CHAIN_ID))
             // tokenContract: abi.encode preenche com zeros à esquerda (address = 20 bytes em slot de 32)
             // A máscara garante que os 12 bytes de padding zero sejam descartados
-            tokenContract := and(
-                mload(add(code, _OFFSET_TOKEN_CONTRACT)),
-                0xffffffffffffffffffffffffffffffffffffffff
-            )
-            tokenId       := mload(add(code, _OFFSET_TOKEN_ID))
+            tokenContract := and(mload(add(code, _OFFSET_TOKEN_CONTRACT)), 0xffffffffffffffffffffffffffffffffffffffff)
+            tokenId := mload(add(code, _OFFSET_TOKEN_ID))
         }
     }
 
     /// @inheritdoc IERC6551Account
-    function isValidSigner(address signer, bytes calldata)
-        public
-        view
-        override
-        returns (bytes4)
-    {
+    function isValidSigner(address signer, bytes calldata) public view override returns (bytes4) {
         if (_isValidSigner(signer)) return _ERC6551_VALID_SIGNER;
         return bytes4(0);
     }
@@ -176,17 +161,20 @@ contract ERC6551Account is
     /// @param operation Tipo de operação (apenas 0 = CALL suportado)
     /// @return result   Retorno da chamada executada
     /// @inheritdoc IERC6551Executable
-    function execute(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        uint8 operation
-    ) external payable override nonReentrant returns (bytes memory result) {
+    function execute(address to, uint256 value, bytes calldata data, uint8 operation)
+        external
+        payable
+        override
+        nonReentrant
+        returns (bytes memory result)
+    {
         require(_isValidSigner(msg.sender), "ERC6551Account: nao autorizado");
         require(operation == OP_CALL, "ERC6551Account: operacao nao suportada");
 
         // Incrementa o state ANTES da chamada (CEI pattern)
-        unchecked { ++_state; }
+        unchecked {
+            ++_state;
+        }
 
         bool success;
         (success, result) = to.call{value: value}(data);
@@ -231,16 +219,9 @@ contract ERC6551Account is
     /// @notice Verifica suporte a interfaces.
     /// @dev Override de ERC165 (via ERC1155Holder) e ERC1155Holder.
     ///      Não precisamos listar IERC165 explicitamente pois ERC165 já a inclui.
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-      override (ERC1155Holder)
-        returns (bool)
-    {
-        return interfaceId == type(IERC1271).interfaceId
-            || interfaceId == type(IERC6551Account).interfaceId
-            || interfaceId == type(IERC6551Executable).interfaceId
-            || super.supportsInterface(interfaceId); // delega para ERC165 e ERC1155Holder
+    function supportsInterface(bytes4 interfaceId) public view override(ERC1155Holder) returns (bool) {
+        return interfaceId == type(IERC1271).interfaceId || interfaceId == type(IERC6551Account).interfaceId
+            || interfaceId == type(IERC6551Executable).interfaceId || super.supportsInterface(interfaceId); // delega para ERC165 e ERC1155Holder
     }
 
     // =========================================================================

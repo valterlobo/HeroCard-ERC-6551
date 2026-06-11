@@ -18,20 +18,20 @@ contract HeroCardTest is Test {
     // Contratos
     // =========================================================================
 
-    ERC6551Registry  public registry;
-    ERC6551Account   public accountImpl;
-    HeroCard         public heroCard;
-    MockERC20        public gold;
-    MockERC721       public sword;
+    ERC6551Registry public registry;
+    ERC6551Account public accountImpl;
+    HeroCard public heroCard;
+    MockERC20 public gold;
+    MockERC721 public sword;
 
     // =========================================================================
     // Atores
     // =========================================================================
 
-    address public owner   = makeAddr("owner");
-    address public alice   = makeAddr("alice");
-    address public bob     = makeAddr("bob");
-    address public minter  = makeAddr("minter");
+    address public owner = makeAddr("owner");
+    address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
+    address public minter = makeAddr("minter");
 
     // =========================================================================
     // Setup
@@ -41,22 +41,19 @@ contract HeroCardTest is Test {
         vm.startPrank(owner);
 
         // 1. Deploy do registry ERC-6551
-        registry    = new ERC6551Registry();
+        registry = new ERC6551Registry();
 
         // 2. Deploy da implementação da conta
         accountImpl = new ERC6551Account();
 
         // 3. Deploy do HeroCard NFT
-        heroCard = new HeroCard(
-            address(registry),
-            address(accountImpl)
-        );
+        heroCard = new HeroCard(address(registry), address(accountImpl));
 
         // 4. Concede role de minter
         heroCard.grantRole(heroCard.MINTER_ROLE(), minter);
 
         // 5. Mocks para testes de ativos
-        gold  = new MockERC20("Gold Token", "GOLD");
+        gold = new MockERC20("Gold Token", "GOLD");
         sword = new MockERC721("Sword NFT", "SWORD");
 
         vm.stopPrank();
@@ -170,9 +167,9 @@ contract HeroCardTest is Test {
 
         (uint256 chainId, address tokenContract, uint256 retTokenId) = account.token();
 
-        assertEq(chainId,       block.chainid);
+        assertEq(chainId, block.chainid);
         assertEq(tokenContract, address(heroCard));
-        assertEq(retTokenId,    tokenId);
+        assertEq(retTokenId, tokenId);
     }
 
     // =========================================================================
@@ -314,8 +311,8 @@ contract HeroCardTest is Test {
         vm.prank(alice);
         heroCard.executeOnAccount(tokenId, bob, 1 ether, "");
         console.log("Bob Balance: ", bob.balance);
-        console.log("Alice Balance: ", alice.balance);   
-        console.log("TBA Balance: ", tba.balance);   
+        console.log("Alice Balance: ", alice.balance);
+        console.log("TBA Balance: ", tba.balance);
 
         assertEq(bob.balance, bobBalanceBefore + 1 ether);
     }
@@ -427,7 +424,6 @@ contract HeroCardTest is Test {
         account.execute(bob, 0, "", 1); // 1 = DELEGATECALL
     }
 
-
     // =========================================================================
     // Testes: Fuzz
     // =========================================================================
@@ -435,20 +431,8 @@ contract HeroCardTest is Test {
     function testFuzz_tba_address_unique_per_token(uint256 tokenId1, uint256 tokenId2) public view {
         vm.assume(tokenId1 != tokenId2);
 
-        address tba1 = registry.account(
-            address(accountImpl),
-            bytes32(0),
-            block.chainid,
-            address(heroCard),
-            tokenId1
-        );
-        address tba2 = registry.account(
-            address(accountImpl),
-            bytes32(0),
-            block.chainid,
-            address(heroCard),
-            tokenId2
-        );
+        address tba1 = registry.account(address(accountImpl), bytes32(0), block.chainid, address(heroCard), tokenId1);
+        address tba2 = registry.account(address(accountImpl), bytes32(0), block.chainid, address(heroCard), tokenId2);
 
         assertTrue(tba1 != tba2, "TBAs devem ser unicas por token");
     }

@@ -21,10 +21,10 @@ contract ERC6551RegistryTest is Test {
     function test_createAccount_AlreadyExists() public {
         // Create first time
         address account1 = registry.createAccount(implementation, salt, chainId, tokenContract, tokenId);
-        
+
         // Create second time - should hit the early return
         address account2 = registry.createAccount(implementation, salt, chainId, tokenContract, tokenId);
-        
+
         assertEq(account1, account2);
     }
 
@@ -32,10 +32,10 @@ contract ERC6551RegistryTest is Test {
     function test_createAccount_Create2Fails() public {
         // Pre-calculate address
         address target = registry.account(implementation, salt, chainId, tokenContract, tokenId);
-        
+
         // Set nonce to 1 so CREATE2 fails
         vm.setNonce(target, 1);
-        
+
         // Ensure code length is 0 so we bypass the early return
         assertEq(target.code.length, 0);
 

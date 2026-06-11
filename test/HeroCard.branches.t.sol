@@ -25,8 +25,14 @@ contract MockERC1155 is ERC1155 {
 // ---------------------------------------------------------------------------
 contract RejectEth {
     error Rejected();
-    receive() external payable { revert Rejected(); }
-    fallback() external payable { revert Rejected(); }
+
+    receive() external payable {
+        revert Rejected();
+    }
+
+    fallback() external payable {
+        revert Rejected();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -34,8 +40,13 @@ contract RejectEth {
 // Usado para acionar require(success) = false no depositEth (L253)
 // ---------------------------------------------------------------------------
 contract RejectEthTBA {
-    receive() external payable { revert("nao aceita ETH"); }
-    fallback() external payable { revert("nao aceita ETH"); }
+    receive() external payable {
+        revert("nao aceita ETH");
+    }
+
+    fallback() external payable {
+        revert("nao aceita ETH");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -72,9 +83,7 @@ contract FalsyERC20 {
 // ---------------------------------------------------------------------------
 contract FalsyTBA {
     // execute() retorna false sem reverter, simulando token com transfer() retornando false
-    function execute(address, uint256, bytes calldata, uint8)
-        external payable returns (bytes memory)
-    {
+    function execute(address, uint256, bytes calldata, uint8) external payable returns (bytes memory) {
         return abi.encode(false);
     }
     // receive para que heroCard possa verificar code.length > 0
@@ -84,36 +93,35 @@ contract FalsyTBA {
 /// @title HeroCardBranchesTest
 /// @notice Cobre os 19 branches não cobertos do HeroCard.sol identificados pelo LCOV
 contract HeroCardBranchesTest is Test {
-
     // ── contratos ─────────────────────────────────────────────────────────────
     ERC6551Registry public registry;
-    ERC6551Account  public accountImpl;
-    HeroCard        public heroCard;
-    MockERC20       public gold;
-    MockERC721      public sword;
-    MockERC1155     public gem;
+    ERC6551Account public accountImpl;
+    HeroCard public heroCard;
+    MockERC20 public gold;
+    MockERC721 public sword;
+    MockERC1155 public gem;
 
     // ── atores ────────────────────────────────────────────────────────────────
-    address public owner  = makeAddr("owner");
-    address public alice  = makeAddr("alice");
-    address public bob    = makeAddr("bob");
+    address public owner = makeAddr("owner");
+    address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
     address public minter = makeAddr("minter");
 
     // ── setup ─────────────────────────────────────────────────────────────────
     function setUp() public {
         vm.startPrank(owner);
-        registry    = new ERC6551Registry();
+        registry = new ERC6551Registry();
         accountImpl = new ERC6551Account();
-        heroCard    = new HeroCard(address(registry), address(accountImpl));
+        heroCard = new HeroCard(address(registry), address(accountImpl));
         heroCard.grantRole(heroCard.MINTER_ROLE(), minter);
         heroCard.grantRole(heroCard.PAUSER_ROLE(), owner);
         gold = new MockERC20("Gold Token", "GOLD");
         sword = new MockERC721("Sword NFT", "SWORD");
-        gem   = new MockERC1155();
+        gem = new MockERC1155();
         vm.stopPrank();
 
         vm.deal(alice, 100 ether);
-        vm.deal(bob,   10 ether);
+        vm.deal(bob, 10 ether);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -616,6 +624,7 @@ contract HeroCardBranchesTest is Test {
         address tba = heroCard.getAccount(fakeTokenId, heroCard.DEFAULT_SALT());
         assertEq(sword.ownerOf(swordId), tba);
     }
+
     // =========================================================================
     // L253 — require(success) == false: TBA rejeita ETH
     // vm.etch substitui o bytecode da TBA pelo de RejectEthTBA
