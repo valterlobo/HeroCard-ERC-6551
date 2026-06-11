@@ -24,14 +24,14 @@ interface IERC6551Registry {
     /// @param chainId Chain ID do NFT
     /// @param tokenContract Endereço do contrato ERC-721
     /// @param tokenId ID do token NFT
-    /// @return account Endereço da TBA criada
+    /// @return accountAddress Endereço da TBA criada
     function createAccount(
         address implementation,
         bytes32 salt,
         uint256 chainId,
         address tokenContract,
         uint256 tokenId
-    ) external returns (address account);
+    ) external returns (address accountAddress);
 
     /// @notice Calcula o endereço determinístico de uma TBA (sem criar)
     /// @param implementation Endereço do contrato de implementação da conta
@@ -39,9 +39,9 @@ interface IERC6551Registry {
     /// @param chainId Chain ID do NFT
     /// @param tokenContract Endereço do contrato ERC-721
     /// @param tokenId ID do token NFT
-    /// @return account Endereço calculado da TBA
+    /// @return accountAddress Endereço calculado da TBA
     function account(address implementation, bytes32 salt, uint256 chainId, address tokenContract, uint256 tokenId)
         external
         view
-        returns (address account);
+        returns (address accountAddress);
 }

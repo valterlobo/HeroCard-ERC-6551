@@ -422,7 +422,14 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
     /// @dev Cria a TBA com salt específico e emite evento
     /// @dev registry é imutável e confiável; o endereço tba só está disponível após a chamada,
     ///      portanto reordenar com CEI não é estruturalmente possível aqui.
-    // slither-disable-next-line reentrancy-events
+    ///
+    /// @dev calls-inside-a-loop: a chamada externa ao registry é inevitável pois cada TBA
+    ///      requer seu próprio tokenId para derivar um endereço CREATE2 único. O risco de DoS
+    ///      é mitigado pelos seguintes fatores:
+    ///        1. `registry` é `immutable` — definido no construtor, confiável por design.
+    ///        2. O loop em mintBatch é limitado a no máximo 50 iterações.
+    ///        3. `registry.createAccount` é idempotente — nunca reverte em chamadas duplicadas.
+    // slither-disable-next-line reentrancy-events,calls-inside-a-loop
     function _createTbaWithSalt(uint256 tokenId, bytes32 salt) internal returns (address tba) {
         tba = registry.createAccount(accountImplementation, salt, block.chainid, address(this), tokenId);
 
