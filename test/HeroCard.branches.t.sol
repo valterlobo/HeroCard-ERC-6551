@@ -29,6 +29,58 @@ contract RejectEth {
     fallback() external payable { revert Rejected(); }
 }
 
+// ---------------------------------------------------------------------------
+// MockTBA: substituto de TBA que rejeita ETH
+// Usado para acionar require(success) = false no depositEth (L253)
+// ---------------------------------------------------------------------------
+contract RejectEthTBA {
+    receive() external payable { revert("nao aceita ETH"); }
+    fallback() external payable { revert("nao aceita ETH"); }
+}
+
+// ---------------------------------------------------------------------------
+// FalsyERC20: token que retorna `false` em transfer() sem reverter
+// Aciona o branch `abi.decode(result, (bool)) == false` nos withdraws (L342)
+// ---------------------------------------------------------------------------
+contract FalsyERC20 {
+    mapping(address => uint256) public balanceOf;
+
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
+    }
+
+    function transfer(address, uint256) external pure returns (bool) {
+        return false; // retorna false sem reverter
+    }
+
+    function transferFrom(address, address, uint256) external pure returns (bool) {
+        return false;
+    }
+
+    function approve(address, uint256) external pure returns (bool) {
+        return true;
+    }
+
+    function allowance(address, address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FalsyTBA: substituto de TBA que implementa execute() retornando abi.encode(false)
+// Usado para acionar o branch `result.length > 0 && decode == false` (L319/342/365/388)
+// ---------------------------------------------------------------------------
+contract FalsyTBA {
+    // execute() retorna false sem reverter, simulando token com transfer() retornando false
+    function execute(address, uint256, bytes calldata, uint8)
+        external payable returns (bytes memory)
+    {
+        return abi.encode(false);
+    }
+    // receive para que heroCard possa verificar code.length > 0
+    receive() external payable {}
+}
+
 /// @title HeroCardBranchesTest
 /// @notice Cobre os 19 branches não cobertos do HeroCard.sol identificados pelo LCOV
 contract HeroCardBranchesTest is Test {
@@ -563,5 +615,79 @@ contract HeroCardBranchesTest is Test {
 
         address tba = heroCard.getAccount(fakeTokenId, heroCard.DEFAULT_SALT());
         assertEq(sword.ownerOf(swordId), tba);
+    }
+    // =========================================================================
+    // L253 — require(success) == false: TBA rejeita ETH
+    // vm.etch substitui o bytecode da TBA pelo de RejectEthTBA
+    // =========================================================================
+    function test_depositEth_fails_when_tba_rejects() public {
+        uint256 tokenId = _mint(alice);
+        address tbaAddr = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+        // Substitui o bytecode da TBA por um contrato que rejeita ETH
+        RejectEthTBA rejeita = new RejectEthTBA();
+        vm.etch(tbaAddr, address(rejeita).code);
+
+        vm.prank(alice);
+        vm.expectRevert("HeroCard: falha ao depositar ETH");
+        heroCard.depositEth{value: 1 ether}(tokenId);
+    }
+
+    // =========================================================================
+    // L319 — withdrawEth: result.length > 0 && decode == false → revert
+    // L342 — withdrawERC20: idem
+    // L365 — withdrawERC721: idem
+    // L388 — withdrawERC1155: idem
+    //
+    // Estratégia: vm.etch substitui o bytecode da TBA pelo de FalsyTBA,
+    // que implementa execute() retornando abi.encode(false).
+    // =========================================================================
+    function test_withdrawEth_result_false_reverts() public {
+        uint256 tokenId = _mint(alice);
+        address tbaAddr = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        vm.deal(tbaAddr, 2 ether);
+
+        FalsyTBA falsyTba = new FalsyTBA();
+        vm.etch(tbaAddr, address(falsyTba).code);
+
+        vm.prank(alice);
+        vm.expectRevert("HeroCard: falha ao sacar ETH");
+        heroCard.withdrawEth(tokenId, payable(bob), 1 ether);
+    }
+
+    function test_withdrawERC20_result_false_reverts() public {
+        uint256 tokenId = _mint(alice);
+        address tbaAddr = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+        FalsyTBA falsyTba = new FalsyTBA();
+        vm.etch(tbaAddr, address(falsyTba).code);
+
+        vm.prank(alice);
+        vm.expectRevert("HeroCard: falha ao sacar ERC20");
+        heroCard.withdrawERC20(tokenId, alice, address(gold), 100e18);
+    }
+
+    function test_withdrawERC721_result_false_reverts() public {
+        uint256 tokenId = _mint(alice);
+        address tbaAddr = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+        FalsyTBA falsyTba = new FalsyTBA();
+        vm.etch(tbaAddr, address(falsyTba).code);
+
+        vm.prank(alice);
+        vm.expectRevert("HeroCard: falha ao sacar ERC721");
+        heroCard.withdrawERC721(tokenId, alice, address(sword), 0);
+    }
+
+    function test_withdrawERC1155_result_false_reverts() public {
+        uint256 tokenId = _mint(alice);
+        address tbaAddr = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+        FalsyTBA falsyTba = new FalsyTBA();
+        vm.etch(tbaAddr, address(falsyTba).code);
+
+        vm.prank(alice);
+        vm.expectRevert("HeroCard: falha ao sacar ERC1155");
+        heroCard.withdrawERC1155(tokenId, alice, address(gem), 1, 100);
     }
 }
