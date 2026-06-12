@@ -699,4 +699,98 @@ contract HeroCardBranchesTest is Test {
         vm.expectRevert("HeroCard: falha ao sacar ERC1155");
         heroCard.withdrawERC1155(tokenId, alice, address(gem), 1, 100);
     }
+
+    // =========================================================================
+    // Coverage para revokeERC20Approvals e revokeERC721Operators
+    // =========================================================================
+
+    function test_revokeERC20Approvals_success() public {
+        uint256 tokenId = _mint(alice);
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        
+        vm.prank(owner);
+        gold.mint(alice, 1000e18);
+        vm.startPrank(alice);
+        gold.approve(address(heroCard), 1000e18);
+        heroCard.depositERC20(tokenId, address(gold), 1000e18);
+
+        address malicious = makeAddr("malicious");
+        heroCard.executeOnAccount(
+            tokenId,
+            address(gold),
+            0,
+            abi.encodeWithSelector(IERC20.approve.selector, malicious, 500e18)
+        );
+
+        assertEq(gold.allowance(tba, malicious), 500e18);
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(gold);
+        address[] memory spenders = new address[](1);
+        spenders[0] = malicious;
+
+        heroCard.revokeERC20Approvals(tokenId, tokens, spenders);
+        
+        assertEq(gold.allowance(tba, malicious), 0);
+        vm.stopPrank();
+    }
+
+    function test_revokeERC20Approvals_reverts_different_length() public {
+        uint256 tokenId = _mint(alice);
+
+        address[] memory tokens = new address[](1);
+        address[] memory spenders = new address[](2);
+
+        vm.prank(alice);
+        vm.expectRevert("HeroCard: arrays de tamanho diferente");
+        heroCard.revokeERC20Approvals(tokenId, tokens, spenders);
+    }
+
+    function test_revokeERC721Operators_success() public {
+        uint256 tokenId = _mint(alice);
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        
+        uint256 mockNftId = sword.mint(alice);
+        vm.startPrank(alice);
+        sword.approve(address(heroCard), mockNftId);
+        heroCard.depositERC721(tokenId, address(sword), mockNftId);
+
+        address malicious = makeAddr("malicious");
+        heroCard.executeOnAccount(
+            tokenId,
+            address(sword),
+            0,
+            abi.encodeWithSelector(IERC721.setApprovalForAll.selector, malicious, true)
+        );
+
+        assertTrue(sword.isApprovedForAll(tba, malicious));
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(sword);
+        address[] memory operators = new address[](1);
+        operators[0] = malicious;
+
+        heroCard.revokeERC721Operators(tokenId, tokens, operators);
+        
+        assertFalse(sword.isApprovedForAll(tba, malicious));
+        vm.stopPrank();
+    }
+
+    function test_revokeERC721Operators_reverts_different_length() public {
+        uint256 tokenId = _mint(alice);
+
+        address[] memory tokens = new address[](1);
+        address[] memory operators = new address[](0);
+
+        vm.prank(alice);
+        vm.expectRevert("HeroCard: arrays de tamanho diferente");
+        heroCard.revokeERC721Operators(tokenId, tokens, operators);
+    }
+
+    function test_safeMint_direct_call() public {
+        vm.prank(minter);
+        heroCard.safeMint(alice, 1234, "uri");
+        assertEq(heroCard.ownerOf(1234), alice);
+        assertEq(heroCard.tokenURI(1234), "uri");
+    }
 }

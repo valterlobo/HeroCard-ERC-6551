@@ -14,6 +14,8 @@ import "../src/mocks/MockERC721.sol";
 /// @title HeroCardTest
 /// @notice Suite completa de testes para o sistema ERC-6551 HeroCard
 contract HeroCardTest is Test {
+    event CardMinted(address indexed to, uint256 indexed tokenId);
+
     // =========================================================================
     // Contratos
     // =========================================================================
@@ -78,7 +80,7 @@ contract HeroCardTest is Test {
     function test_mint_emits_events() public {
         vm.prank(minter);
         vm.expectEmit(true, true, false, true);
-        emit HeroCard.CardMinted(alice, 0);
+        emit CardMinted(alice, 0);
 
         heroCard.mint(alice, "");
     }

@@ -77,7 +77,7 @@ contract ERC6551AccountSignatureTest is Test {
         uint256 aliceKey = 0xA11CE;
         uint256 bobKey = 0xB0B;
         address alice = vm.addr(aliceKey);
-        address bob = vm.addr(bobKey);
+        address bobSigner = vm.addr(bobKey);
 
         vm.prank(minter);
         uint256 tokenId = heroCard.mint(alice, "");
@@ -99,7 +99,7 @@ contract ERC6551AccountSignatureTest is Test {
 
         // Transfere Alice → Bob
         vm.prank(alice);
-        heroCard.transferFrom(alice, bob, tokenId);
+        heroCard.transferFrom(alice, bobSigner, tokenId);
 
         // Agora apenas Bob é válido
         assertEq(
@@ -108,8 +108,8 @@ contract ERC6551AccountSignatureTest is Test {
         assertEq(tba.isValidSignature(hash, bobSig), bytes4(0x1626ba7e), "bob deve ser valido apos transferencia");
 
         // Transfere Bob → Alice (de volta)
-        vm.prank(bob);
-        heroCard.transferFrom(bob, alice, tokenId);
+        vm.prank(bobSigner);
+        heroCard.transferFrom(bobSigner, alice, tokenId);
 
         // Alice é válida novamente
         assertEq(tba.isValidSignature(hash, aliceSig), bytes4(0x1626ba7e), "alice deve ser valida novamente");

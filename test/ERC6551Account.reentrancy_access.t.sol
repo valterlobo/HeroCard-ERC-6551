@@ -66,7 +66,7 @@ contract ERC6551AccountReentrancyAccessTest is Test {
         // Enviar ETH para attacker (trigger fallback)
         vm.prank(alice);
         vm.expectRevert(); // ReentrancyGuard reverte
-        tba.execute(address(attacker), 0.1 ether, "", 0);
+        tba.execute(address(attacker), 0.1 ether, "0x1234", 0);
 
         // TBA não deve ter perdido ETH (transação reverteu)
         assertEq(address(tba).balance, 1 ether, "tba nao deve ter perdido eth");
@@ -371,6 +371,8 @@ contract FallbackReentrancyAttacker {
             tba.execute(address(this), 0, "", 0);
         }
     }
+
+    receive() external payable {}
 }
 
 /// @notice Atacante que tenta reentrância via receive

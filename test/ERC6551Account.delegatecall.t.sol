@@ -315,7 +315,9 @@ contract StorageReader {
 /// @notice Contrato com selfdestruct
 contract SelfDestructContract {
     function destroy(address payable beneficiary) external {
-        selfdestruct(beneficiary);
+        assembly {
+            selfdestruct(beneficiary)
+        }
     }
 
     receive() external payable {}
