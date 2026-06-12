@@ -113,7 +113,7 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
         _unpause();
     }
 
-    function safeMint(address to, uint256 tokenId, string memory uri) public onlyRole(MINTER_ROLE) {
+    function safeMint(address to, uint256 tokenId, string memory uri) public onlyRole(MINTER_ROLE) nonReentrant {
         _createTba(tokenId); // Cria a TBA primeiro
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, uri);
@@ -239,13 +239,13 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
         _requireOwned(tokenId);
         require(msg.value > 0, "HeroCard: valor zero");
 
-        // CEI: emit before external calls
-        emit EthDeposited(tokenId, msg.sender, msg.value);
-
         address tba = _getOrCreateTba(tokenId);
 
         (bool success,) = tba.call{value: msg.value}("");
         require(success, "HeroCard: falha ao depositar ETH");
+
+        // CEI: emit before external calls
+        emit EthDeposited(tokenId, msg.sender, msg.value);
     }
 
     /// @notice Deposita tokens ERC-20 na TBA do cartão
@@ -257,12 +257,12 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
         _requireOwned(tokenId);
         require(amount > 0, "HeroCard: quantidade zero");
 
-        // CEI: emit before external calls
-        emit Erc20Deposited(tokenId, tokenContract, msg.sender, amount);
-
         address tba = _getOrCreateTba(tokenId);
 
         IERC20(tokenContract).safeTransferFrom(msg.sender, tba, amount);
+
+        // CEI: emit before external calls
+        emit Erc20Deposited(tokenId, tokenContract, msg.sender, amount);
     }
 
     /// @notice Deposita um NFT ERC-721 na TBA do cartão
@@ -273,7 +273,6 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
     function depositERC721(uint256 tokenId, address nftContract, uint256 nftTokenId) external nonReentrant {
         _requireOwned(tokenId);
         address tba = _getOrCreateTba(tokenId);
-
         IERC721(nftContract).safeTransferFrom(msg.sender, tba, nftTokenId);
     }
 
@@ -283,10 +282,12 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
     /// @param tokenContract    Endereço do contrato ERC-1155
     /// @param assetTokenId     ID do token ERC-1155
     /// @param amount           Quantidade a depositar
-    function depositERC1155(uint256 tokenId, address tokenContract, uint256 assetTokenId, uint256 amount) external nonReentrant {
+    function depositERC1155(uint256 tokenId, address tokenContract, uint256 assetTokenId, uint256 amount)
+        external
+        nonReentrant
+    {
         _requireOwned(tokenId);
         address tba = _getOrCreateTba(tokenId);
-
         IERC1155(tokenContract).safeTransferFrom(msg.sender, tba, assetTokenId, amount, "");
     }
 
@@ -334,7 +335,11 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
 
         bytes memory result = IERC6551Executable(tba).execute(tokenContract, 0, data, 0);
-        require(result.length == 0 || abi.decode(result, (bool)), "HeroCard: falha ao sacar ERC20");
+
+        // Para ERC20
+        require(
+            result.length == 0 || (result.length == 32 && abi.decode(result, (bool))), "HeroCard: falha ao sacar ERC20"
+        );
     }
 
     /// @notice Saca um NFT ERC-721 da TBA do cartão
@@ -355,7 +360,6 @@ contract HeroCard is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ER
         // safeTransferFrom is overloaded; use explicit selector for (address,address,uint256)
         bytes4 selector = bytes4(keccak256("safeTransferFrom(address,address,uint256)"));
         bytes memory data = abi.encodeWithSelector(selector, tba, to, nftTokenId);
-
         bytes memory result = IERC6551Executable(tba).execute(nftContract, 0, data, 0);
         require(result.length == 0 || abi.decode(result, (bool)), "HeroCard: falha ao sacar ERC721");
     }
