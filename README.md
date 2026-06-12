@@ -2,6 +2,15 @@
 
 Projeto **Foundry** que implementa o padrão [ERC-6551](https://eips.ethereum.org/EIPS/eip-6551) para criar cartões virtuais NFT (ERC-721) com carteira inteligente própria — capaz de acumular ETH, ERC-20, ERC-721 e ERC-1155.
 
+
+@TODO
+- Testar com outros nfts
+- Desenvolver um SBT PARA NAO PERMITIR TRANSFERENCIA DO NFT
+- Ter dados reais nos nfts (imagem, efeitos, etc)
+- Ter logica de criacao de nfts
+- Ter logica de premios (tokens)
+
+
 ---
 
 ## Arquitetura
@@ -79,7 +88,7 @@ forge build
 ## Testes
 
 ```bash
-# Executa toda a suite (74 testes)
+# Executa toda a suite (99 testes)
 forge test
 
 # Com output detalhado
@@ -106,6 +115,9 @@ forge coverage
 | `test/HeroCard.branches.t.sol` | 36 | Cobertura de branches (revert paths, casos extremos) |
 | `test/ERC6551Account.t.sol` | 8 | Branches da conta (autorização, assinaturas, interfaces) |
 | `test/ERC6551Registry.t.sol` | 2 | Branches do registry (idempotência, falha no CREATE2) |
+| `test/ERC6551Account.signature.t.sol` | 7 | Segurança de assinaturas ERC-1271 |
+| `test/ERC6551Account.transfer.t.sol` | 6 | Riscos de transferência e mitigações |
+| `test/ERC6551Account.initialization.t.sol` | 12 | Inicialização de proxy e CREATE2 |
 
 ### Resultado de cobertura atual
 
@@ -118,6 +130,14 @@ forge coverage
 | `MockERC721.sol` | 100% | 100% | 100% |
 
 > Gerado com `forge coverage`. O `script/Deploy.s.sol` é excluído por não ser executado nos testes unitários.
+
+---
+
+## Analise Estatica
+
+```bash
+slither . --exclude-informational --filter-paths "lib/" --solc-args "--base-path . --include-path lib"
+```
 
 ---
 
@@ -210,16 +230,52 @@ Alice vende HeroCard #5 para Bob
 
 > **ATENÇÃO:** Transferir um HeroCard NFT transfere automaticamente o controle da TBA e de **todos os ativos** que ela contém para o novo proprietário.
 >
-> **Retire seus ativos da TBA antes de vender ou transferir o NFT.**
+> **ANTES DE TRANSFERIR O NFT:**
+> 1. ✅ Saque TODOS os ativos (ETH, ERC-20, ERC-721, ERC-1155)
+> 2. ✅ Revogue TODAS as aprovações ERC-20 concedidas pela TBA
+> 3. ✅ Revogue TODOS os operadores ERC-721/1155 aprovados
+> 4. ✅ Feche TODAS as posições DeFi (staking, lending, etc)
+>
+> **Riscos se não fizer isso:**
+> - 🔴 Aprovações ERC-20 persistem após transferência (novo owner pode ter tokens drenados)
+> - 🔴 Operadores ERC-721/1155 persistem (novo owner pode ter NFTs roubados)
+> - 🟡 Posições DeFi são herdadas pelo novo owner
+>
+> Ver documentação completa em `SECURITY_AUDIT_TRANSFER_RISKS.md`
 
 ---
 
 ## Segurança
 
+### Proteções Implementadas
+
 - **Checks-Effects-Interactions (CEI):** eventos emitidos antes das chamadas externas nos depósitos; `_state` incrementado antes de `execute()` na TBA.
 - **ReentrancyGuard:** todas as funções que realizam chamadas externas são protegidas (`nonReentrant`).
 - **Validação de retorno:** os resultados de `execute()` nos saques são decodificados e validados.
 - **Slither:** auditoria estática realizada; warnings residuais documentados com `slither-disable` justificados.
+
+### Auditorias de Segurança
+
+O projeto passou por **6 auditorias de segurança abrangentes**:
+
+| Auditoria | Status | Arquivo |
+|-----------|--------|---------|
+| Conformidade com ERC-6551 | ✅ Conforme | README.md |
+| Gas Griefing e Loops | ✅ Seguro | `SECURITY_ANALYSIS_GAS_GRIEFING.md` |
+| Assinatura de Mensagens (ERC-1271) | ✅ Seguro | `SECURITY_AUDIT_SIGNATURE.md` |
+| Riscos de Transferência | ⚠️ Documentado | `SECURITY_AUDIT_TRANSFER_RISKS.md` |
+| Inicialização de Proxy | ✅ Seguro | `SECURITY_AUDIT_PROXY_INITIALIZATION.md` |
+| CREATE2 e Colisão | ✅ Seguro | `SECURITY_AUDIT_CREATE2.md` |
+
+**Total de Testes:** 99 ✅ (100% passed)  
+**Cobertura:** 100% de branches em contratos principais  
+**Vulnerabilidades Críticas:** 0
+
+### Documentação de Segurança
+
+- `SECURITY_SUMMARY.md` - Resumo consolidado de todas as auditorias
+- `docs/GAS_GRIEFING_PATTERNS.md` - Padrões seguros para futuras implementações
+- Testes de segurança em `test/ERC6551Account.*.t.sol`
 
 ---
 
