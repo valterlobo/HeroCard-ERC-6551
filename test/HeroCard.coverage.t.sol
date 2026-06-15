@@ -26,7 +26,7 @@ contract HeroCardCoverageTest is Test {
         heroCard = new HeroCard(address(registry), address(accountImpl));
         heroCard.grantRole(heroCard.MINTER_ROLE(), minter);
         heroCard.grantRole(heroCard.PAUSER_ROLE(), deployer);
-        
+
         usdc = new MockERC20("USD Coin", "USDC");
         nft = new MockERC721("Mock NFT", "MNFT");
         vm.stopPrank();
@@ -50,7 +50,7 @@ contract HeroCardCoverageTest is Test {
         vm.stopPrank();
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         usdc.mint(alice, 1000e6);
         vm.startPrank(alice);
         usdc.approve(address(heroCard), 1000e6);
@@ -59,10 +59,7 @@ contract HeroCardCoverageTest is Test {
         // Aprova um contrato malicioso
         address malicious = makeAddr("malicious");
         heroCard.executeOnAccount(
-            tokenId,
-            address(usdc),
-            0,
-            abi.encodeWithSelector(IERC20.approve.selector, malicious, 500e6)
+            tokenId, address(usdc), 0, abi.encodeWithSelector(IERC20.approve.selector, malicious, 500e6)
         );
 
         assertEq(usdc.allowance(tba, malicious), 500e6);
@@ -73,7 +70,7 @@ contract HeroCardCoverageTest is Test {
         spenders[0] = malicious;
 
         heroCard.revokeERC20Approvals(tokenId, tokens, spenders);
-        
+
         assertEq(usdc.allowance(tba, malicious), 0);
         vm.stopPrank();
     }
@@ -97,7 +94,7 @@ contract HeroCardCoverageTest is Test {
         vm.stopPrank();
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         uint256 mockNftId = nft.mint(alice);
         vm.startPrank(alice);
         nft.approve(address(heroCard), mockNftId);
@@ -105,10 +102,7 @@ contract HeroCardCoverageTest is Test {
 
         address malicious = makeAddr("malicious");
         heroCard.executeOnAccount(
-            tokenId,
-            address(nft),
-            0,
-            abi.encodeWithSelector(IERC721.setApprovalForAll.selector, malicious, true)
+            tokenId, address(nft), 0, abi.encodeWithSelector(IERC721.setApprovalForAll.selector, malicious, true)
         );
 
         assertTrue(nft.isApprovedForAll(tba, malicious));
@@ -119,7 +113,7 @@ contract HeroCardCoverageTest is Test {
         operators[0] = malicious;
 
         heroCard.revokeERC721Operators(tokenId, tokens, operators);
-        
+
         assertFalse(nft.isApprovedForAll(tba, malicious));
         vm.stopPrank();
     }

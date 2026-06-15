@@ -231,7 +231,11 @@ contract ERC6551Account is
     /// @notice Retorna o proprietário atual do NFT vinculado à conta.
     /// @dev Consulta ownerOf() em tempo real — não cached em storage.
     function _owner() internal view returns (address) {
-        (, address tokenContract, uint256 tokenId) = token();
+        (uint256 chainId, address tokenContract, uint256 tokenId) = token();
+
+        // ✅ Adicionar verificação de chainId conforme especificação oficial
+        if (chainId != block.chainid) return address(0);
+
         return IERC721(tokenContract).ownerOf(tokenId);
     }
 

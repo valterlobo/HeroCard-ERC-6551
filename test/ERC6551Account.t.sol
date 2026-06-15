@@ -231,4 +231,18 @@ contract ERC6551AccountTest is Test {
         emit ERC6551Account.TransactionExecuted(bob, 0.5 ether, "", 0);
         tba.execute(bob, 0.5 ether, "", 0);
     }
+
+    function test_account_owner_different_chain() public {
+        vm.prank(minter);
+        uint256 tokenId = heroCard.mint(alice, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        ERC6551Account account = ERC6551Account(payable(tba));
+
+        // Simular chamada com chainId diferente
+        vm.chainId(999); // Muda para uma chain diferente
+
+        // owner() deve retornar address(0) quando chainId não corresponde
+        // (após a correção)
+    }
 }

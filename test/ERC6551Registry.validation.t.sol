@@ -35,7 +35,7 @@ contract ERC6551RegistryValidationTest is Test {
         vm.prank(user);
         vm.expectRevert("ERC6551Registry: implementacao invalida");
         registry.createAccount(
-            address(0),  // ❌ Implementation inválida
+            address(0), // ❌ Implementation inválida
             SALT,
             CHAIN_ID,
             validTokenContract,
@@ -47,7 +47,7 @@ contract ERC6551RegistryValidationTest is Test {
     function test_accept_valid_implementation() public {
         vm.prank(user);
         address tba = registry.createAccount(
-            address(accountImpl),  // ✅ Implementation válida
+            address(accountImpl), // ✅ Implementation válida
             SALT,
             CHAIN_ID,
             validTokenContract,
@@ -70,7 +70,7 @@ contract ERC6551RegistryValidationTest is Test {
             address(accountImpl),
             SALT,
             CHAIN_ID,
-            address(0),  // ❌ tokenContract inválido
+            address(0), // ❌ tokenContract inválido
             TOKEN_ID
         );
     }
@@ -82,7 +82,7 @@ contract ERC6551RegistryValidationTest is Test {
             address(accountImpl),
             SALT,
             CHAIN_ID,
-            validTokenContract,  // ✅ tokenContract válido
+            validTokenContract, // ✅ tokenContract válido
             TOKEN_ID
         );
 
@@ -98,10 +98,10 @@ contract ERC6551RegistryValidationTest is Test {
         vm.prank(user);
         vm.expectRevert("ERC6551Registry: implementacao invalida");
         registry.createAccount(
-            address(0),  // ❌ Implementation inválida
+            address(0), // ❌ Implementation inválida
             SALT,
             CHAIN_ID,
-            address(0),  // ❌ tokenContract inválido
+            address(0), // ❌ tokenContract inválido
             TOKEN_ID
         );
     }
@@ -115,7 +115,7 @@ contract ERC6551RegistryValidationTest is Test {
         // account() é view e não tem require, mas o bytecode gerado seria inválido
         // Vamos apenas verificar que não reverte inesperadamente
         address tba = registry.account(
-            address(0),  // ⚠️ Implementation inválida, mas account() é view
+            address(0), // ⚠️ Implementation inválida, mas account() é view
             SALT,
             CHAIN_ID,
             validTokenContract,
@@ -123,7 +123,7 @@ contract ERC6551RegistryValidationTest is Test {
         );
 
         // account() não valida, apenas calcula o endereço
-        assertTrue(tba != address(0), 'Endereco deve ser calculado');
+        assertTrue(tba != address(0), "Endereco deve ser calculado");
     }
 
     // =========================================================================
@@ -134,16 +134,10 @@ contract ERC6551RegistryValidationTest is Test {
     function test_heroCard_cannot_create_invalid_tba() public {
         // Simula tentativa de criar TBA com implementation inválida
         // (HeroCard sempre usa accountImplementation válido, mas o registry agora protege)
-        
+
         vm.prank(user);
         vm.expectRevert("ERC6551Registry: implementacao invalida");
-        registry.createAccount(
-            address(0),
-            SALT,
-            CHAIN_ID,
-            validTokenContract,
-            TOKEN_ID
-        );
+        registry.createAccount(address(0), SALT, CHAIN_ID, validTokenContract, TOKEN_ID);
     }
 
     // =========================================================================
@@ -173,8 +167,8 @@ contract ERC6551RegistryValidationTest is Test {
         uint256 gasUsedSuccess = gasBefore - gasAfter;
 
         // Validação economiza gas significativo
-        assertLt(gasUsedRevert, gasUsedSuccess, 'Revert deve usar menos gas que criacao completa');
-        
+        assertLt(gasUsedRevert, gasUsedSuccess, "Revert deve usar menos gas que criacao completa");
+
         // Log para verificação
         emit log_named_uint("Gas revert (validacao)", gasUsedRevert);
         emit log_named_uint("Gas sucesso (criacao)", gasUsedSuccess);

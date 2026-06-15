@@ -25,13 +25,9 @@ contract HeroCardSBT is HeroCardBase {
     {}
 
     /// @dev Sobrescreve a função de atualização de propriedade para tornar o token Soulbound (intransferível)
-    function _update(address to, uint256 tokenId, address auth)
-        internal
-        override
-        returns (address)
-    {
+    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
         address from = _ownerOf(tokenId);
-        
+
         // Se `from` não for 0 (não é mint) e `to` não for 0 (não é burn), então é uma transferência.
         // Revertemos, pois SBTs não podem ser transferidos.
         require(from == address(0) || to == address(0), "HeroCardSBT: Transferencia nao permitida (Soulbound)");

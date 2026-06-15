@@ -41,11 +41,11 @@ contract HeroCardSBTTest is Test {
         // tokenURI will return whatever was passed during minting, and the baseURI handles the rest if empty
         assertEq(sbt.tokenURI(tokenId), "ipfs://custom_uri");
     }
-    
+
     function test_sbt_batch_mint_uri() public {
         vm.prank(minter);
         uint256 firstId = sbt.mintBatch(alice, 2);
-        
+
         assertEq(sbt.ownerOf(firstId), alice);
         assertEq(sbt.tokenURI(firstId), "ipfs://QmHeroCardSBT0");
         assertEq(sbt.tokenURI(firstId + 1), "ipfs://QmHeroCardSBT1");
@@ -62,7 +62,7 @@ contract HeroCardSBTTest is Test {
         vm.prank(alice);
         vm.expectRevert("HeroCardSBT: Transferencia nao permitida (Soulbound)");
         sbt.safeTransferFrom(alice, bob, tokenId);
-        
+
         // Ensure Alice is still the owner
         assertEq(sbt.ownerOf(tokenId), alice);
     }
@@ -70,16 +70,16 @@ contract HeroCardSBTTest is Test {
     function test_sbt_tba_functionality() public {
         vm.prank(minter);
         uint256 tokenId = sbt.mint(alice, "");
-        
+
         // Ensure TBA was created
         assertTrue(sbt.isAccountCreated(tokenId, sbt.DEFAULT_SALT()));
-        
+
         address tba = sbt.getAccount(tokenId, sbt.DEFAULT_SALT());
 
         // Deposit ETH
         vm.prank(alice);
         sbt.depositEth{value: 1 ether}(tokenId);
-        
+
         assertEq(tba.balance, 1 ether);
 
         // Withdraw ETH

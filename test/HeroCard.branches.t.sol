@@ -707,7 +707,7 @@ contract HeroCardBranchesTest is Test {
     function test_revokeERC20Approvals_success() public {
         uint256 tokenId = _mint(alice);
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         vm.prank(owner);
         gold.mint(alice, 1000e18);
         vm.startPrank(alice);
@@ -716,10 +716,7 @@ contract HeroCardBranchesTest is Test {
 
         address malicious = makeAddr("malicious");
         heroCard.executeOnAccount(
-            tokenId,
-            address(gold),
-            0,
-            abi.encodeWithSelector(IERC20.approve.selector, malicious, 500e18)
+            tokenId, address(gold), 0, abi.encodeWithSelector(IERC20.approve.selector, malicious, 500e18)
         );
 
         assertEq(gold.allowance(tba, malicious), 500e18);
@@ -730,7 +727,7 @@ contract HeroCardBranchesTest is Test {
         spenders[0] = malicious;
 
         heroCard.revokeERC20Approvals(tokenId, tokens, spenders);
-        
+
         assertEq(gold.allowance(tba, malicious), 0);
         vm.stopPrank();
     }
@@ -749,7 +746,7 @@ contract HeroCardBranchesTest is Test {
     function test_revokeERC721Operators_success() public {
         uint256 tokenId = _mint(alice);
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         uint256 mockNftId = sword.mint(alice);
         vm.startPrank(alice);
         sword.approve(address(heroCard), mockNftId);
@@ -757,10 +754,7 @@ contract HeroCardBranchesTest is Test {
 
         address malicious = makeAddr("malicious");
         heroCard.executeOnAccount(
-            tokenId,
-            address(sword),
-            0,
-            abi.encodeWithSelector(IERC721.setApprovalForAll.selector, malicious, true)
+            tokenId, address(sword), 0, abi.encodeWithSelector(IERC721.setApprovalForAll.selector, malicious, true)
         );
 
         assertTrue(sword.isApprovedForAll(tba, malicious));
@@ -771,7 +765,7 @@ contract HeroCardBranchesTest is Test {
         operators[0] = malicious;
 
         heroCard.revokeERC721Operators(tokenId, tokens, operators);
-        
+
         assertFalse(sword.isApprovedForAll(tba, malicious));
         vm.stopPrank();
     }

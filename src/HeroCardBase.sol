@@ -40,9 +40,9 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     }
 
     constructor(
-        address _registry, 
-        address _accountImplementation, 
-        string memory _name, 
+        address _registry,
+        address _accountImplementation,
+        string memory _name,
         string memory _symbol,
         string memory _baseUriPrefix
     ) ERC721(_name, _symbol) {
@@ -243,7 +243,8 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
 
         bytes memory result = IERC6551Executable(tba).execute(tokenContract, 0, data, 0);
         require(
-            result.length == 0 || (result.length == 32 && abi.decode(result, (bool))), "HeroCard: falha ao sacar ERC1155"
+            result.length == 0 || (result.length == 32 && abi.decode(result, (bool))),
+            "HeroCard: falha ao sacar ERC1155"
         );
     }
 
