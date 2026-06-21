@@ -174,7 +174,7 @@ contract ERC6551AccountTest is Test {
         bytes memory badSig = abi.encodePacked(r, s, v);
 
         bytes4 result = tba.isValidSignature(hash, badSig);
-        assertEq(result, bytes4(0), "assinatura invalida deve retornar 0xffffffff");
+        assertEq(result, bytes4(0xffffffff), "assinatura invalida deve retornar 0xffffffff");
     }
 
     // =========================================================================

@@ -381,7 +381,7 @@ contract ERC6551Account is
     {
         address owner = _owner();
         bool valid = SignatureChecker.isValidSignatureNow(owner, hash, signature);
-        return valid ? _ERC1271_MAGIC_VALUE : bytes4(0);
+        return valid ? _ERC1271_MAGIC_VALUE : _ERC1271_INVALID;
     }
 
     // =========================================================================

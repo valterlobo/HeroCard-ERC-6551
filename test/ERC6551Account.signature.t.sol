@@ -61,7 +61,7 @@ contract ERC6551AccountSignatureTest is Test {
         // Assinatura de Alice agora é INVÁLIDA
         assertEq(
             tba.isValidSignature(hash, aliceSignature),
-            bytes4(0),
+            bytes4(0xffffffff),
             "assinatura de alice deve ser invalida apos transferencia"
         );
     }
@@ -95,14 +95,16 @@ contract ERC6551AccountSignatureTest is Test {
 
         // Estado inicial: apenas Alice é válida
         assertEq(tba.isValidSignature(hash, aliceSig), bytes4(0x1626ba7e), "alice deve ser valida inicialmente");
-        assertEq(tba.isValidSignature(hash, bobSig), bytes4(0), "bob nao deve ser valido inicialmente");
+        assertEq(tba.isValidSignature(hash, bobSig), bytes4(0xffffffff), "bob nao deve ser valido inicialmente");
 
         // Transfere Alice → Bob
         vm.prank(alice);
         heroCard.transferFrom(alice, bobSigner, tokenId);
 
         // Agora apenas Bob é válido
-        assertEq(tba.isValidSignature(hash, aliceSig), bytes4(0), "alice nao deve ser valida apos transferencia");
+        assertEq(
+            tba.isValidSignature(hash, aliceSig), bytes4(0xffffffff), "alice nao deve ser valida apos transferencia"
+        );
         assertEq(tba.isValidSignature(hash, bobSig), bytes4(0x1626ba7e), "bob deve ser valido apos transferencia");
 
         // Transfere Bob → Alice (de volta)
@@ -111,7 +113,7 @@ contract ERC6551AccountSignatureTest is Test {
 
         // Alice é válida novamente
         assertEq(tba.isValidSignature(hash, aliceSig), bytes4(0x1626ba7e), "alice deve ser valida novamente");
-        assertEq(tba.isValidSignature(hash, bobSig), bytes4(0), "bob nao deve ser valido apos devolucao");
+        assertEq(tba.isValidSignature(hash, bobSig), bytes4(0xffffffff), "bob nao deve ser valido apos devolucao");
     }
 
     // =========================================================================
@@ -236,7 +238,7 @@ contract ERC6551AccountSignatureTest is Test {
 
         // Assinatura vazia
         bytes memory emptySig = "";
-        assertEq(tba.isValidSignature(zeroHash, emptySig), bytes4(0), "assinatura vazia deve ser invalida");
+        assertEq(tba.isValidSignature(zeroHash, emptySig), bytes4(0xffffffff), "assinatura vazia deve ser invalida");
     }
 
     // =========================================================================
@@ -268,7 +270,7 @@ contract ERC6551AccountSignatureTest is Test {
         heroCard.transferFrom(alice, bob, tokenId);
 
         // Deve ser inválida após transferência
-        assertEq(tba.isValidSignature(randomHash, sig), bytes4(0));
+        assertEq(tba.isValidSignature(randomHash, sig), bytes4(0xffffffff));
     }
 }
 
