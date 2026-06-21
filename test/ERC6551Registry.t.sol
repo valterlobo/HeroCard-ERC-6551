@@ -42,4 +42,16 @@ contract ERC6551RegistryTest is Test {
         vm.expectRevert(IERC6551Registry.AccountCreationFailed.selector);
         registry.createAccount(implementation, salt, chainId, tokenContract, tokenId);
     }
+
+    // Branch 3: implementation == address(0)
+    function test_createAccount_InvalidImplementation() public {
+        vm.expectRevert("ERC6551Registry: implementacao invalida");
+        registry.createAccount(address(0), salt, chainId, tokenContract, tokenId);
+    }
+
+    // Branch 4: tokenContract == address(0)
+    function test_createAccount_InvalidTokenContract() public {
+        vm.expectRevert("ERC6551Registry: tokenContract invalido");
+        registry.createAccount(implementation, salt, chainId, address(0), tokenId);
+    }
 }

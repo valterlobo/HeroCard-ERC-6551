@@ -41,15 +41,15 @@ import "./interfaces/IERC6551Account.sol";
 ///          ativos nela contidos. Retire os ativos antes de transferir o NFT
 ///          se não quiser transferir o controle da carteira.
 ///
-    /// SEGURANÇA E LIMITAÇÕES: 
-    ///   - Esta implementação previne ownership cycles DIRETOS — a TBA não pode
-    ///     transferir o próprio NFT ao qual está vinculada via execute().
-    ///   - LIMITAÇÃO 1: Não bloqueia a TBA de dar approve/setApprovalForAll sobre o NFT 
-    ///     a um terceiro, o que poderia permitir um ciclo indireto.
-    ///   - LIMITAÇÃO 2: Não previne ciclos profundos de posse (ex: TBA A possui NFT B, 
-    ///     e TBA B possui NFT A).
-    ///   Ambos os cenários exigem intenção explícita do owner (auto-dano) e não são 
-    ///   checados para manter a eficiência de gás.
+/// SEGURANÇA E LIMITAÇÕES:
+///   - Esta implementação previne ownership cycles DIRETOS — a TBA não pode
+///     transferir o próprio NFT ao qual está vinculada via execute().
+///   - LIMITAÇÃO 1: Não bloqueia a TBA de dar approve/setApprovalForAll sobre o NFT
+///     a um terceiro, o que poderia permitir um ciclo indireto.
+///   - LIMITAÇÃO 2: Não previne ciclos profundos de posse (ex: TBA A possui NFT B,
+///     e TBA B possui NFT A).
+///   Ambos os cenários exigem intenção explícita do owner (auto-dano) e não são
+///   checados para manter a eficiência de gás.
 contract ERC6551Account is
     IERC1271,
     IERC6551Account,
@@ -165,7 +165,7 @@ contract ERC6551Account is
 
     /// @notice Retorna os dados do NFT vinculado a esta conta.
     /// @dev Lê os dados imutáveis embutidos no bytecode do proxy via `extcodecopy`.
-    ///      Esta implementação otimizada copia apenas os 96 bytes necessários do 
+    ///      Esta implementação otimizada copia apenas os 96 bytes necessários do
     ///      bytecode do proxy diretamente para a memória, evitando alocar um array de bytes completo.
     ///
     ///      Layout do runtime code (173 bytes):
@@ -180,18 +180,18 @@ contract ERC6551Account is
         assembly {
             // Obtém um ponteiro para a memória livre
             let ptr := mload(0x40)
-            
+
             // Copia 96 bytes (0x60) do bytecode do proxy começando no offset 77.
             // Offset 77 é onde o chainId começa (45 bytes de proxy EIP-1167 + 32 bytes de salt).
             extcodecopy(address(), ptr, 77, 96)
 
             // Lê as variáveis diretamente da memória copiada
             chainId := mload(ptr)
-            
+
             // tokenContract tem 20 bytes, mas foi codificado como 32 bytes (com padding à esquerda).
             // A máscara descarta qualquer sujeira (embora deva ser limpo por design do abi.encode).
             tokenContract := and(mload(add(ptr, 32)), 0xffffffffffffffffffffffffffffffffffffffff)
-            
+
             tokenId := mload(add(ptr, 64))
         }
     }
@@ -280,9 +280,9 @@ contract ERC6551Account is
     ///      Protegido contra reentrância via ReentrancyGuard.
     ///      O state é incrementado ANTES da chamada externa (checks-effects-interactions).
     ///
-    ///      ATENÇÃO SOBRE SALDOS DE ETH: O valor em `msg.value` é somado ao saldo 
-    ///      existente da TBA antes da execução. Se o parâmetro `value` exceder 
-    ///      o `msg.value` enviado, a diferença será deduzida do saldo de ETH 
+    ///      ATENÇÃO SOBRE SALDOS DE ETH: O valor em `msg.value` é somado ao saldo
+    ///      existente da TBA antes da execução. Se o parâmetro `value` exceder
+    ///      o `msg.value` enviado, a diferença será deduzida do saldo de ETH
     ///      previamente custodiado na TBA.
     ///
     /// @param to        Endereço de destino
@@ -330,9 +330,9 @@ contract ERC6551Account is
     ///      Se qualquer chamada falhar, toda a transação é revertida (atomicidade).
     ///      Os arrays `targets`, `values` e `data` devem ter o mesmo comprimento.
     ///
-    ///      ATENÇÃO SOBRE SALDOS DE ETH: O valor em `msg.value` é somado ao saldo 
-    ///      existente da TBA antes da execução. Se a soma dos `values[i]` exceder 
-    ///      o `msg.value` enviado, a diferença será deduzida do saldo de ETH 
+    ///      ATENÇÃO SOBRE SALDOS DE ETH: O valor em `msg.value` é somado ao saldo
+    ///      existente da TBA antes da execução. Se a soma dos `values[i]` exceder
+    ///      o `msg.value` enviado, a diferença será deduzida do saldo de ETH
     ///      previamente custodiado na TBA.
     ///
     /// @param targets   Array de endereços de destino
@@ -443,9 +443,9 @@ contract ERC6551Account is
     ///      do próprio NFT que a controla, criando um estado em que ninguém pode autorizá-la.
     ///
     ///      LIMITAÇÕES CONHECIDAS (Auto-dano não prevenido para otimização de gás):
-    ///        1. Cadeia de Aprovação: Não impede que a TBA chame `approve` ou 
+    ///        1. Cadeia de Aprovação: Não impede que a TBA chame `approve` ou
     ///           `setApprovalForAll` no tokenContract. Um terceiro poderia fechar o ciclo.
-    ///        2. Ciclos Profundos: Não rastreia cadeias recursivas de propriedade (ex: 
+    ///        2. Ciclos Profundos: Não rastreia cadeias recursivas de propriedade (ex:
     ///           TBA A possui NFT B, cuja TBA B possui NFT A).
     ///
     ///      Detecta as três variantes de transferência ERC-721:
