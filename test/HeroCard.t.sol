@@ -7,6 +7,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 import "../src/ERC6551Registry.sol";
 import "../src/ERC6551Account.sol";
+import "../src/HeroCardAccount.sol";
 import "../src/HeroCard.sol";
 import "../src/mocks/MockERC20.sol";
 import "../src/mocks/MockERC721.sol";
@@ -46,7 +47,7 @@ contract HeroCardTest is Test {
         registry = new ERC6551Registry();
 
         // 2. Deploy da implementação da conta
-        accountImpl = new ERC6551Account();
+        accountImpl = new HeroCardAccount();
 
         // 3. Deploy do HeroCard NFT
         heroCard = new HeroCard(address(registry), address(accountImpl));

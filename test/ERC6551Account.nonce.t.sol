@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import "../src/ERC6551Registry.sol";
 import "../src/ERC6551Account.sol";
+import "../src/HeroCardAccount.sol";
 import "../src/HeroCard.sol";
 
 /// @title ERC6551AccountNonceTest
@@ -22,7 +23,7 @@ contract ERC6551AccountNonceTest is Test {
         address deployer = makeAddr("deployer");
         vm.startPrank(deployer);
         registry = new ERC6551Registry();
-        accountImpl = new ERC6551Account();
+        accountImpl = new HeroCardAccount();
         heroCard = new HeroCard(address(registry), address(accountImpl));
         heroCard.grantRole(heroCard.MINTER_ROLE(), minter);
         vm.stopPrank();

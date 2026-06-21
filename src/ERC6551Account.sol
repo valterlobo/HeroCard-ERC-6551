@@ -41,8 +41,15 @@ import "./interfaces/IERC6551Account.sol";
 ///          ativos nela contidos. Retire os ativos antes de transferir o NFT
 ///          se não quiser transferir o controle da carteira.
 ///
-/// SEGURANÇA: Esta implementação previne ownership cycles — a TBA não pode
-///            transferir o próprio NFT ao qual está vinculada via execute().
+    /// SEGURANÇA E LIMITAÇÕES: 
+    ///   - Esta implementação previne ownership cycles DIRETOS — a TBA não pode
+    ///     transferir o próprio NFT ao qual está vinculada via execute().
+    ///   - LIMITAÇÃO 1: Não bloqueia a TBA de dar approve/setApprovalForAll sobre o NFT 
+    ///     a um terceiro, o que poderia permitir um ciclo indireto.
+    ///   - LIMITAÇÃO 2: Não previne ciclos profundos de posse (ex: TBA A possui NFT B, 
+    ///     e TBA B possui NFT A).
+    ///   Ambos os cenários exigem intenção explícita do owner (auto-dano) e não são 
+    ///   checados para manter a eficiência de gás.
 contract ERC6551Account is
     IERC1271,
     IERC6551Account,
@@ -157,9 +164,9 @@ contract ERC6551Account is
     }
 
     /// @notice Retorna os dados do NFT vinculado a esta conta.
-    /// @dev Lê os dados imutáveis embutidos no bytecode do proxy via codecopy/assembly.
-    ///      address(this).code retorna o bytecode do PROXY (não da implementação),
-    ///      pois esta função é chamada via delegatecall.
+    /// @dev Lê os dados imutáveis embutidos no bytecode do proxy via `extcodecopy`.
+    ///      Esta implementação otimizada copia apenas os 96 bytes necessários do 
+    ///      bytecode do proxy diretamente para a memória, evitando alocar um array de bytes completo.
     ///
     ///      Layout do runtime code (173 bytes):
     ///        [0..44]   proxy EIP-1167   (45 bytes)
@@ -168,19 +175,24 @@ contract ERC6551Account is
     ///        [109..140] tokenContract   (32 bytes, address padded)
     ///        [141..172] tokenId         (32 bytes)
     ///
-    ///      `bytes memory code` em assembly:
-    ///        code pointer -> word com length (32 bytes) + dados do runtime
-    ///        mload(add(code, _OFFSET_CHAIN_ID)) lê 32 bytes a partir do offset correto
     /// @inheritdoc IERC6551Account
     function token() public view override returns (uint256 chainId, address tokenContract, uint256 tokenId) {
-        bytes memory code = address(this).code;
         assembly {
-            // Cada offset inclui 0x20 (32 bytes) para pular o length slot da bytes memory
-            chainId := mload(add(code, _OFFSET_CHAIN_ID))
-            // tokenContract: abi.encode preenche com zeros à esquerda (address = 20 bytes em slot de 32)
-            // A máscara garante que os 12 bytes de padding zero sejam descartados
-            tokenContract := and(mload(add(code, _OFFSET_TOKEN_CONTRACT)), 0xffffffffffffffffffffffffffffffffffffffff)
-            tokenId := mload(add(code, _OFFSET_TOKEN_ID))
+            // Obtém um ponteiro para a memória livre
+            let ptr := mload(0x40)
+            
+            // Copia 96 bytes (0x60) do bytecode do proxy começando no offset 77.
+            // Offset 77 é onde o chainId começa (45 bytes de proxy EIP-1167 + 32 bytes de salt).
+            extcodecopy(address(), ptr, 77, 96)
+
+            // Lê as variáveis diretamente da memória copiada
+            chainId := mload(ptr)
+            
+            // tokenContract tem 20 bytes, mas foi codificado como 32 bytes (com padding à esquerda).
+            // A máscara descarta qualquer sujeira (embora deva ser limpo por design do abi.encode).
+            tokenContract := and(mload(add(ptr, 32)), 0xffffffffffffffffffffffffffffffffffffffff)
+            
+            tokenId := mload(add(ptr, 64))
         }
     }
 
@@ -268,6 +280,11 @@ contract ERC6551Account is
     ///      Protegido contra reentrância via ReentrancyGuard.
     ///      O state é incrementado ANTES da chamada externa (checks-effects-interactions).
     ///
+    ///      ATENÇÃO SOBRE SALDOS DE ETH: O valor em `msg.value` é somado ao saldo 
+    ///      existente da TBA antes da execução. Se o parâmetro `value` exceder 
+    ///      o `msg.value` enviado, a diferença será deduzida do saldo de ETH 
+    ///      previamente custodiado na TBA.
+    ///
     /// @param to        Endereço de destino
     /// @param value     Valor ETH em wei a enviar
     /// @param data      Calldata da chamada
@@ -312,6 +329,11 @@ contract ERC6551Account is
     ///      O state é incrementado ANTES das chamadas externas (CEI pattern).
     ///      Se qualquer chamada falhar, toda a transação é revertida (atomicidade).
     ///      Os arrays `targets`, `values` e `data` devem ter o mesmo comprimento.
+    ///
+    ///      ATENÇÃO SOBRE SALDOS DE ETH: O valor em `msg.value` é somado ao saldo 
+    ///      existente da TBA antes da execução. Se a soma dos `values[i]` exceder 
+    ///      o `msg.value` enviado, a diferença será deduzida do saldo de ETH 
+    ///      previamente custodiado na TBA.
     ///
     /// @param targets   Array de endereços de destino
     /// @param values    Array de valores ETH em wei a enviar por chamada
@@ -411,22 +433,20 @@ contract ERC6551Account is
         return IERC721(tokenContract).ownerOf(tokenId);
     }
 
-    /// @notice Retorna true se o signer é o owner atual do NFT vinculado,
-    ///         ou o próprio contrato do token (que já faz controle de acesso internamente).
-    function _isValidSigner(address signer) internal view returns (bool) {
-        if (signer == _owner()) return true;
-
-        // Permite que o contrato do próprio token chame execute().
-        // Contratos como HeroCard verificam onlyOwnerOfToken antes de delegar
-        // para a TBA, portanto confiar no tokenContract é seguro.
-        (, address tokenContract,) = token();
-        return signer == tokenContract;
+    /// @notice Retorna true se o signer é o owner atual do NFT vinculado.
+    function _isValidSigner(address signer) internal view virtual returns (bool) {
+        return signer == _owner();
     }
 
-    /// @notice Previne que a TBA transfira o NFT ao qual está vinculada.
+    /// @notice Previne que a TBA transfira diretamente o NFT ao qual está vinculada.
     /// @dev Um ownership cycle ocorre quando a TBA tenta executar uma transferência
-    ///      do próprio NFT que controla esta conta — isso tornaria a TBA proprietária
-    ///      de si mesma, criando um estado em que ninguém pode autorizar execuções.
+    ///      do próprio NFT que a controla, criando um estado em que ninguém pode autorizá-la.
+    ///
+    ///      LIMITAÇÕES CONHECIDAS (Auto-dano não prevenido para otimização de gás):
+    ///        1. Cadeia de Aprovação: Não impede que a TBA chame `approve` ou 
+    ///           `setApprovalForAll` no tokenContract. Um terceiro poderia fechar o ciclo.
+    ///        2. Ciclos Profundos: Não rastreia cadeias recursivas de propriedade (ex: 
+    ///           TBA A possui NFT B, cuja TBA B possui NFT A).
     ///
     ///      Detecta as três variantes de transferência ERC-721:
     ///        - transferFrom(from, to, tokenId)

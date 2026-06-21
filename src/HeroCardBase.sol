@@ -287,6 +287,13 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         return super.supportsInterface(interfaceId);
     }
 
+    /// @notice Valida o retorno de uma chamada externa feita via TBA.
+    /// @dev Aceita retornos vazios (result.length == 0) como sucesso. Isso acomoda tokens
+    ///      ERC-20 legados que não retornam booleano e operações padrão de ERC-721/1155
+    ///      (como safeTransferFrom) que tradicionalmente não possuem retorno.
+    ///      SUPOSIÇÃO IMPLÍCITA: Assume-se que o contrato alvo sempre reverterá a transação
+    ///      em caso de falha. Falhas silenciosas (não reverter e retornar vazio) serão 
+    ///      tratadas como sucesso.
     function _requireSuccessResult(bytes memory result, string memory errorMessage) internal pure {
         require(
             result.length == 0 || (result.length == 32 && abi.decode(result, (bool))),

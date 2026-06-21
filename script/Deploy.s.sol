@@ -7,6 +7,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 import "../src/ERC6551Registry.sol";
 import "../src/ERC6551Account.sol";
+import "../src/HeroCardAccount.sol";
 import "../src/HeroCard.sol";
 
 /// @title DeployHeroCard
@@ -57,9 +58,9 @@ contract DeployHeroCard is Script {
         // ─────────────────────────────────────────────────────────────────────
         // 2. Deploy da implementação da conta ERC-6551
         // ─────────────────────────────────────────────────────────────────────
-        console.log("\n[2/3] Deploy da ERC6551Account (implementacao)...");
-        ERC6551Account accountImpl = new ERC6551Account();
-        console.log("      ERC6551Account deployada em:", address(accountImpl));
+        console.log("\n[2/3] Deploy da HeroCardAccount (implementacao ERC6551Account)...");
+        HeroCardAccount accountImpl = new HeroCardAccount();
+        console.log("      HeroCardAccount deployada em:", address(accountImpl));
 
         // ─────────────────────────────────────────────────────────────────────
         // 3. Deploy do HeroCard NFT
@@ -97,7 +98,7 @@ contract DeployHeroCard is Script {
         // ─────────────────────────────────────────────────────────────────────
         console.log("\n=== Resumo do Deploy ===");
         console.log("ERC6551Registry:    ", address(registry));
-        console.log("ERC6551Account impl:", address(accountImpl));
+        console.log("HeroCardAccount impl:", address(accountImpl));
         console.log("HeroCard NFT:       ", address(heroCard));
         console.log("TBA do tokenId 0:   ", tba);
     }

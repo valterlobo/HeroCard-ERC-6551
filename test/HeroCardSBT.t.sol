@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import "../src/ERC6551Registry.sol";
 import "../src/ERC6551Account.sol";
+import "../src/HeroCardAccount.sol";
 import "../src/HeroCardSBT.sol";
 
 contract HeroCardSBTTest is Test {
@@ -19,7 +20,7 @@ contract HeroCardSBTTest is Test {
         address deployer = makeAddr("deployer");
         vm.startPrank(deployer);
         registry = new ERC6551Registry();
-        accountImpl = new ERC6551Account();
+        accountImpl = new HeroCardAccount();
         sbt = new HeroCardSBT(address(registry), address(accountImpl));
         sbt.grantRole(sbt.MINTER_ROLE(), minter);
         vm.stopPrank();

@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "../src/HeroCard.sol";
 import "../src/ERC6551Registry.sol";
 import "../src/ERC6551Account.sol";
+import "../src/HeroCardAccount.sol";
 import "../src/mocks/MockERC20.sol";
 import "../src/mocks/MockERC721.sol";
 
@@ -22,7 +23,7 @@ contract HeroCardCoverageTest is Test {
         address deployer = makeAddr("deployer");
         vm.startPrank(deployer);
         registry = new ERC6551Registry();
-        accountImpl = new ERC6551Account();
+        accountImpl = new HeroCardAccount();
         heroCard = new HeroCard(address(registry), address(accountImpl));
         heroCard.grantRole(heroCard.MINTER_ROLE(), minter);
         heroCard.grantRole(heroCard.PAUSER_ROLE(), deployer);

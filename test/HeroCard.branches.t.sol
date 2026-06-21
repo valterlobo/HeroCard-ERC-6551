@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import "../src/ERC6551Registry.sol";
 import "../src/ERC6551Account.sol";
+import "../src/HeroCardAccount.sol";
 import "../src/HeroCard.sol";
 import "../src/mocks/MockERC20.sol";
 import "../src/mocks/MockERC721.sol";
@@ -111,7 +112,7 @@ contract HeroCardBranchesTest is Test {
     function setUp() public {
         vm.startPrank(owner);
         registry = new ERC6551Registry();
-        accountImpl = new ERC6551Account();
+        accountImpl = new HeroCardAccount();
         heroCard = new HeroCard(address(registry), address(accountImpl));
         heroCard.grantRole(heroCard.MINTER_ROLE(), minter);
         heroCard.grantRole(heroCard.PAUSER_ROLE(), owner);
@@ -205,7 +206,7 @@ contract HeroCardBranchesTest is Test {
         // Usamos uma abordagem diferente: o HeroCard2 tem uma implementação diferente
         // cujo endereço TBA nunca foi deployado neste registry.
         // → Deploy com um accountImpl alternativo (não deployado ainda).
-        ERC6551Account newImpl = new ERC6551Account();
+        ERC6551Account newImpl = new HeroCardAccount();
         HeroCard heroCard3 = new HeroCard(address(registry), address(newImpl));
         heroCard3.grantRole(heroCard3.MINTER_ROLE(), minter);
 
