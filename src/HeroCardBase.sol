@@ -185,9 +185,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         require(tba.code.length > 0, "HeroCard: TBA nao criada");
 
         bytes memory result = IERC6551Executable(tba).execute(to, amount, "", 0);
-        require(
-            result.length == 0 || (result.length == 32 && abi.decode(result, (bool))), "HeroCard: falha ao sacar ETH"
-        );
+        _requireSuccessResult(result, "HeroCard: falha ao sacar ETH");
     }
 
     function withdrawERC20(uint256 tokenId, address to, address tokenContract, uint256 amount)
@@ -205,9 +203,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
 
         bytes memory result = IERC6551Executable(tba).execute(tokenContract, 0, data, 0);
 
-        require(
-            result.length == 0 || (result.length == 32 && abi.decode(result, (bool))), "HeroCard: falha ao sacar ERC20"
-        );
+        _requireSuccessResult(result, "HeroCard: falha ao sacar ERC20");
     }
 
     function withdrawERC721(uint256 tokenId, address to, address nftContract, uint256 nftTokenId)
@@ -223,9 +219,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         bytes4 selector = bytes4(keccak256("safeTransferFrom(address,address,uint256)"));
         bytes memory data = abi.encodeWithSelector(selector, tba, to, nftTokenId);
         bytes memory result = IERC6551Executable(tba).execute(nftContract, 0, data, 0);
-        require(
-            result.length == 0 || (result.length == 32 && abi.decode(result, (bool))), "HeroCard: falha ao sacar ERC721"
-        );
+        _requireSuccessResult(result, "HeroCard: falha ao sacar ERC721");
     }
 
     function withdrawERC1155(uint256 tokenId, address to, address tokenContract, uint256 assetTokenId, uint256 amount)
@@ -242,10 +236,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
             abi.encodeWithSelector(IERC1155.safeTransferFrom.selector, tba, to, assetTokenId, amount, "");
 
         bytes memory result = IERC6551Executable(tba).execute(tokenContract, 0, data, 0);
-        require(
-            result.length == 0 || (result.length == 32 && abi.decode(result, (bool))),
-            "HeroCard: falha ao sacar ERC1155"
-        );
+        _requireSuccessResult(result, "HeroCard: falha ao sacar ERC1155");
     }
 
     function revokeERC20Approvals(uint256 tokenId, address[] calldata tokens, address[] calldata spenders)
@@ -261,10 +252,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         for (uint256 i = 0; i < tokens.length; i++) {
             bytes memory data = abi.encodeWithSelector(IERC20.approve.selector, spenders[i], 0);
             bytes memory result = IERC6551Executable(tba).execute(tokens[i], 0, data, 0);
-            require(
-                result.length == 0 || (result.length == 32 && abi.decode(result, (bool))),
-                "HeroCard: falha ao revogar ERC20"
-            );
+            _requireSuccessResult(result, "HeroCard: falha ao revogar ERC20");
         }
     }
 
@@ -281,10 +269,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         for (uint256 i = 0; i < contracts.length; i++) {
             bytes memory data = abi.encodeWithSelector(IERC721.setApprovalForAll.selector, operators[i], false);
             bytes memory result = IERC6551Executable(tba).execute(contracts[i], 0, data, 0);
-            require(
-                result.length == 0 || (result.length == 32 && abi.decode(result, (bool))),
-                "HeroCard: falha ao revogar ERC721"
-            );
+            _requireSuccessResult(result, "HeroCard: falha ao revogar ERC721");
         }
     }
 
@@ -300,6 +285,13 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    function _requireSuccessResult(bytes memory result, string memory errorMessage) internal pure {
+        require(
+            result.length == 0 || (result.length == 32 && abi.decode(result, (bool))),
+            errorMessage
+        );
     }
 
     function _createTba(uint256 tokenId) internal returns (address) {
