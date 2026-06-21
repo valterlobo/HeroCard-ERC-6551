@@ -33,8 +33,7 @@ contract ERC6551AccountOwnershipCycleTest is Test {
 
     // Selectors ERC-721
     bytes4 private constant _TRANSFER_FROM = bytes4(keccak256("transferFrom(address,address,uint256)"));
-    bytes4 private constant _SAFE_TRANSFER_FROM_3 =
-        bytes4(keccak256("safeTransferFrom(address,address,uint256)"));
+    bytes4 private constant _SAFE_TRANSFER_FROM_3 = bytes4(keccak256("safeTransferFrom(address,address,uint256)"));
     bytes4 private constant _SAFE_TRANSFER_FROM_4 =
         bytes4(keccak256("safeTransferFrom(address,address,uint256,bytes)"));
 
@@ -70,9 +69,9 @@ contract ERC6551AccountOwnershipCycleTest is Test {
 
         bytes memory data = abi.encodeWithSelector(
             _TRANSFER_FROM,
-            alice,        // from
+            alice, // from
             address(tba), // to — TBA tentando se tornar dona
-            tokenId       // o tokenId vinculado
+            tokenId // o tokenId vinculado
         );
 
         vm.prank(alice);
@@ -88,12 +87,7 @@ contract ERC6551AccountOwnershipCycleTest is Test {
     function test_cycle_safeTransferFrom3_bound_tokenId_reverts() public {
         (uint256 tokenId, ERC6551Account tba) = _mintCard(alice);
 
-        bytes memory data = abi.encodeWithSelector(
-            _SAFE_TRANSFER_FROM_3,
-            alice,
-            address(tba),
-            tokenId
-        );
+        bytes memory data = abi.encodeWithSelector(_SAFE_TRANSFER_FROM_3, alice, address(tba), tokenId);
 
         vm.prank(alice);
         vm.expectRevert(ERC6551Account.OwnershipCycleDetected.selector);
@@ -133,7 +127,7 @@ contract ERC6551AccountOwnershipCycleTest is Test {
         bytes memory data = abi.encodeWithSelector(
             _TRANSFER_FROM,
             alice,
-            bob,    // destinatário é bob, não a TBA
+            bob, // destinatário é bob, não a TBA
             tokenId // mas o tokenId vinculado → deve bloquear
         );
 
@@ -160,7 +154,7 @@ contract ERC6551AccountOwnershipCycleTest is Test {
             _TRANSFER_FROM,
             address(tba), // from = TBA (dona do outro token)
             bob,
-            otherTokenId  // tokenId diferente → permitido
+            otherTokenId // tokenId diferente → permitido
         );
 
         vm.prank(alice);
@@ -214,11 +208,7 @@ contract ERC6551AccountOwnershipCycleTest is Test {
         (uint256 tokenId, ERC6551Account tba) = _mintCard(alice);
 
         // approve(address,uint256) — não é bloqueado pelo guard
-        bytes memory data = abi.encodeWithSelector(
-            IERC721.approve.selector,
-            bob,
-            tokenId
-        );
+        bytes memory data = abi.encodeWithSelector(IERC721.approve.selector, bob, tokenId);
 
         vm.prank(alice);
         // Pode falhar por outro motivo (TBA não é dona para aprovar), mas
@@ -324,8 +314,9 @@ contract ERC6551AccountOwnershipCycleTest is Test {
         // Não usar expectRevert(OwnershipCycleDetected) — pode falhar por outro erro
         // Mas se reverter com OwnershipCycleDetected, o teste falha (o que é correto)
         try tba.execute(address(heroCard), 0, data, 0) {
-            // sucesso: token fuzzedTokenId existia e foi transferido (improvável)
-        } catch (bytes memory reason) {
+        // sucesso: token fuzzedTokenId existia e foi transferido (improvável)
+        }
+        catch (bytes memory reason) {
             // Falhou por outro motivo (token inexistente, not approved, etc.)
             // Garantir que NÃO é OwnershipCycleDetected
             bytes4 errSelector = bytes4(reason);
@@ -357,8 +348,9 @@ contract ERC6551AccountOwnershipCycleTest is Test {
 
         vm.prank(alice);
         try tba.execute(address(heroCard), 0, data, 0) {
-            // sucesso improvável, mas não é bloqueio de cycle
-        } catch (bytes memory reason) {
+        // sucesso improvável, mas não é bloqueio de cycle
+        }
+        catch (bytes memory reason) {
             bytes4 errSelector = bytes4(reason);
             assertNotEq(
                 errSelector,

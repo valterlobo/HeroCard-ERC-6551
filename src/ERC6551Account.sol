@@ -109,7 +109,8 @@ contract ERC6551Account is
     /// @dev safeTransferFrom(address,address,uint256)
     bytes4 private constant _SAFE_TRANSFER_FROM_3 = bytes4(keccak256("safeTransferFrom(address,address,uint256)"));
     /// @dev safeTransferFrom(address,address,uint256,bytes)
-    bytes4 private constant _SAFE_TRANSFER_FROM_4 = bytes4(keccak256("safeTransferFrom(address,address,uint256,bytes)"));
+    bytes4 private constant _SAFE_TRANSFER_FROM_4 =
+        bytes4(keccak256("safeTransferFrom(address,address,uint256,bytes)"));
 
     /// @dev Tamanho mínimo de calldata para conter selector (4) + from (32) + to (32) + tokenId (32)
     uint256 private constant _MIN_TRANSFER_DATA = 4 + 32 + 32 + 32;
@@ -250,12 +251,7 @@ contract ERC6551Account is
     /// @param context Dados adicionais passados pelo caller
     /// @return        true se o signer é autorizado via contexto; false caso contrário
     // solhint-disable-next-line no-unused-vars
-    function _isValidSignerWithContext(address signer, bytes calldata context)
-        internal
-        view
-        virtual
-        returns (bool)
-    {
+    function _isValidSignerWithContext(address signer, bytes calldata context) internal view virtual returns (bool) {
         // Suprimir warnings de parâmetros não utilizados na implementação base
         signer;
         context;
@@ -335,12 +331,12 @@ contract ERC6551Account is
         require(length > 0, "ERC6551Account: batch vazio");
         require(values.length == length && data.length == length, "ERC6551Account: arrays com tamanhos diferentes");
 
+        results = new bytes[](length);
+
         // Incrementa o state ANTES das chamadas (CEI pattern)
         unchecked {
             ++_state;
         }
-
-        results = new bytes[](length);
 
         for (uint256 i = 0; i < length;) {
             // Proteção contra ownership cycle em cada chamada do batch
@@ -385,7 +381,7 @@ contract ERC6551Account is
     {
         address owner = _owner();
         bool valid = SignatureChecker.isValidSignatureNow(owner, hash, signature);
-        return valid ? _ERC1271_MAGIC_VALUE : _ERC1271_INVALID;
+        return valid ? _ERC1271_MAGIC_VALUE : bytes4(0);
     }
 
     // =========================================================================
@@ -454,10 +450,9 @@ contract ERC6551Account is
 
         // Verifica se é uma das três variantes de transferência ERC-721
         bytes4 selector = bytes4(data[:4]);
-        if (
-            selector != _TRANSFER_FROM && selector != _SAFE_TRANSFER_FROM_3
-                && selector != _SAFE_TRANSFER_FROM_4
-        ) return;
+        if (selector != _TRANSFER_FROM && selector != _SAFE_TRANSFER_FROM_3 && selector != _SAFE_TRANSFER_FROM_4) {
+            return;
+        }
 
         // Extrai o tokenId (terceiro argumento ABI = bytes 68..99 do calldata)
         // offset: 4 (selector) + 32 (from) + 32 (to) = 68

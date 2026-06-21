@@ -88,7 +88,7 @@ contract ERC6551AccountBranchesTest is Test {
 
         // Muda para chain diferente → _owner() == address(0) → inválida
         vm.chainId(1337);
-        assertEq(tba.isValidSignature(hash, sig), bytes4(0xffffffff), "deve ser invalida em chain errada");
+        assertEq(tba.isValidSignature(hash, sig), bytes4(0), "deve ser invalida em chain errada");
     }
 
     // =========================================================================
