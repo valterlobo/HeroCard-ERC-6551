@@ -67,8 +67,8 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     }
 
     function safeMint(address to, uint256 tokenId, string memory uri) public onlyRole(MINTER_ROLE) nonReentrant {
-        _createTba(tokenId);
         _safeMint(to, tokenId);
+        _createTba(tokenId);
         _setTokenURI(tokenId, uri);
         emit CardMinted(to, tokenId);
     }
@@ -122,19 +122,6 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         return _createTbaWithSalt(tokenId, salt);
     }
 
-    function executeOnAccount(uint256 tokenId, address to, uint256 value, bytes calldata data)
-        external
-        payable
-        nonReentrant
-        onlyOwnerOfToken(tokenId)
-        returns (bytes memory result)
-    {
-        address tba = getAccount(tokenId, DEFAULT_SALT);
-        require(tba.code.length > 0, "HeroCard: TBA nao criada");
-
-        result = IERC6551Executable(tba).execute{value: msg.value}(to, value, data, 0);
-    }
-
     function depositEth(uint256 tokenId) external payable nonReentrant {
         _requireOwned(tokenId);
         require(msg.value > 0, "HeroCard: valor zero");
@@ -173,106 +160,6 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         IERC1155(tokenContract).safeTransferFrom(msg.sender, tba, assetTokenId, amount, "");
     }
 
-    function withdrawEth(uint256 tokenId, address payable to, uint256 amount)
-        external
-        nonReentrant
-        onlyOwnerOfToken(tokenId)
-    {
-        require(to != address(0), "HeroCard: destinatario invalido");
-        require(amount > 0, "HeroCard: valor zero");
-
-        address tba = getAccount(tokenId, DEFAULT_SALT);
-        require(tba.code.length > 0, "HeroCard: TBA nao criada");
-
-        bytes memory result = IERC6551Executable(tba).execute(to, amount, "", 0);
-        _requireSuccessResult(result, "HeroCard: falha ao sacar ETH");
-    }
-
-    function withdrawERC20(uint256 tokenId, address to, address tokenContract, uint256 amount)
-        external
-        nonReentrant
-        onlyOwnerOfToken(tokenId)
-    {
-        require(to != address(0), "HeroCard: destinatario invalido");
-        require(amount > 0, "HeroCard: quantidade zero");
-
-        address tba = getAccount(tokenId, DEFAULT_SALT);
-        require(tba.code.length > 0, "HeroCard: TBA nao criada");
-
-        bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
-
-        bytes memory result = IERC6551Executable(tba).execute(tokenContract, 0, data, 0);
-
-        _requireSuccessResult(result, "HeroCard: falha ao sacar ERC20");
-    }
-
-    function withdrawERC721(uint256 tokenId, address to, address nftContract, uint256 nftTokenId)
-        external
-        nonReentrant
-        onlyOwnerOfToken(tokenId)
-    {
-        require(to != address(0), "HeroCard: destinatario invalido");
-
-        address tba = getAccount(tokenId, DEFAULT_SALT);
-        require(tba.code.length > 0, "HeroCard: TBA nao criada");
-
-        bytes4 selector = bytes4(keccak256("safeTransferFrom(address,address,uint256)"));
-        bytes memory data = abi.encodeWithSelector(selector, tba, to, nftTokenId);
-        bytes memory result = IERC6551Executable(tba).execute(nftContract, 0, data, 0);
-        _requireSuccessResult(result, "HeroCard: falha ao sacar ERC721");
-    }
-
-    function withdrawERC1155(uint256 tokenId, address to, address tokenContract, uint256 assetTokenId, uint256 amount)
-        external
-        nonReentrant
-        onlyOwnerOfToken(tokenId)
-    {
-        require(to != address(0), "HeroCard: destinatario invalido");
-
-        address tba = getAccount(tokenId, DEFAULT_SALT);
-        require(tba.code.length > 0, "HeroCard: TBA nao criada");
-
-        bytes memory data =
-            abi.encodeWithSelector(IERC1155.safeTransferFrom.selector, tba, to, assetTokenId, amount, "");
-
-        bytes memory result = IERC6551Executable(tba).execute(tokenContract, 0, data, 0);
-        _requireSuccessResult(result, "HeroCard: falha ao sacar ERC1155");
-    }
-
-    function revokeERC20Approvals(uint256 tokenId, address[] calldata tokens, address[] calldata spenders)
-        external
-        nonReentrant
-        onlyOwnerOfToken(tokenId)
-    {
-        require(tokens.length == spenders.length, "HeroCard: arrays de tamanho diferente");
-
-        address tba = getAccount(tokenId, DEFAULT_SALT);
-        require(tba.code.length > 0, "HeroCard: TBA nao criada");
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            bytes memory data = abi.encodeWithSelector(IERC20.approve.selector, spenders[i], 0);
-            bytes memory result = IERC6551Executable(tba).execute(tokens[i], 0, data, 0);
-            _requireSuccessResult(result, "HeroCard: falha ao revogar ERC20");
-        }
-    }
-
-    function revokeERC721Operators(uint256 tokenId, address[] calldata contracts, address[] calldata operators)
-        external
-        nonReentrant
-        onlyOwnerOfToken(tokenId)
-    {
-        require(contracts.length == operators.length, "HeroCard: arrays de tamanho diferente");
-
-        address tba = getAccount(tokenId, DEFAULT_SALT);
-        require(tba.code.length > 0, "HeroCard: TBA nao criada");
-
-        for (uint256 i = 0; i < contracts.length; i++) {
-            bytes memory data = abi.encodeWithSelector(IERC721.setApprovalForAll.selector, operators[i], false);
-            bytes memory result = IERC6551Executable(tba).execute(contracts[i], 0, data, 0);
-            _requireSuccessResult(result, "HeroCard: falha ao revogar ERC721");
-        }
-    }
-
     function totalSupply() external view returns (uint256) {
         return _nextTokenId;
     }
@@ -285,17 +172,6 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
-    }
-
-    /// @notice Valida o retorno de uma chamada externa feita via TBA.
-    /// @dev Aceita retornos vazios (result.length == 0) como sucesso. Isso acomoda tokens
-    ///      ERC-20 legados que não retornam booleano e operações padrão de ERC-721/1155
-    ///      (como safeTransferFrom) que tradicionalmente não possuem retorno.
-    ///      SUPOSIÇÃO IMPLÍCITA: Assume-se que o contrato alvo sempre reverterá a transação
-    ///      em caso de falha. Falhas silenciosas (não reverter e retornar vazio) serão
-    ///      tratadas como sucesso.
-    function _requireSuccessResult(bytes memory result, string memory errorMessage) internal pure {
-        require(result.length == 0 || (result.length == 32 && abi.decode(result, (bool))), errorMessage);
     }
 
     function _createTba(uint256 tokenId) internal returns (address) {

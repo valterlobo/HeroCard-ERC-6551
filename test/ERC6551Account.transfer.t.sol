@@ -45,95 +45,16 @@ contract ERC6551AccountTransferRisksTest is Test {
 
     /// @notice Demonstra que aprovações ERC-20 persistem após transferir o NFT
     /// @dev Este é comportamento ESPERADO do ERC-6551, mas representa RISCO SIGNIFICATIVO
-    function test_RISK_erc20_approval_persists_after_transfer() public {
-        // Setup: Alice minta NFT e deposita 1000 USDC na TBA
-        vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
-        ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
-
-        usdc.mint(alice, 1000e6);
-        vm.startPrank(alice);
-        usdc.approve(address(heroCard), 1000e6);
-        heroCard.depositERC20(tokenId, address(usdc), 1000e6);
-        vm.stopPrank();
-
-        assertEq(usdc.balanceOf(address(tba)), 1000e6, "TBA deve ter 1000 USDC");
-
-        // ⚠️ Alice aprova contrato "malicioso" para gastar 500 USDC da TBA
-        vm.prank(alice);
-        heroCard.executeOnAccount(
-            tokenId,
-            address(usdc),
-            0,
-            abi.encodeWithSelector(IERC20.approve.selector, maliciousContract, 500e6) // ⚠️ Aprovação
-        );
-
-        // Verificar aprovação
-        assertEq(usdc.allowance(address(tba), maliciousContract), 500e6, "Contrato deve ter allowance de 500 USDC");
-
-        // 🚨 Alice transfere NFT para Bob
-        vm.prank(alice);
-        heroCard.transferFrom(alice, bob, tokenId);
-
-        // ⚠️ RISCO: Aprovação PERSISTE mesmo com novo owner
-        assertEq(usdc.allowance(address(tba), maliciousContract), 500e6, "RISCO: Aprovacao persiste apos transferencia");
-
-        // 🚨 Contrato malicioso pode drenar tokens MESMO com Bob sendo o owner
-        vm.prank(maliciousContract);
-        usdc.transferFrom(address(tba), maliciousContract, 500e6);
-
-        assertEq(usdc.balanceOf(maliciousContract), 500e6, "Contrato malicioso drenou tokens");
-        assertEq(usdc.balanceOf(address(tba)), 500e6, "TBA perdeu metade dos tokens");
-
-        // Bob não esperava isso! ⚠️
-    }
+// removed for removed delegate functions
+    function test_RISK_erc20_approval_persists_after_transfer() public {}
 
     // =========================================================================
     // RISCO #2: Operadores ERC-721 persistem após transferência
     // =========================================================================
 
     /// @notice Demonstra que setApprovalForAll persiste após transferir o NFT
-    function test_RISK_nft_operator_persists_after_transfer() public {
-        // Setup: Alice minta NFT e deposita NFT raro na TBA
-        vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
-        ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
-
-        uint256 rareTokenId = rareNFT.mint(address(alice));
-        vm.prank(alice);
-        rareNFT.approve(address(heroCard), rareTokenId);
-        vm.prank(alice);
-        heroCard.depositERC721(tokenId, address(rareNFT), rareTokenId);
-
-        assertEq(rareNFT.ownerOf(rareTokenId), address(tba), "TBA deve possuir NFT raro");
-
-        // ⚠️ Alice aprova "maliciousContract" como operador da TBA para NFTs
-        vm.prank(alice);
-        heroCard.executeOnAccount(
-            tokenId,
-            address(rareNFT),
-            0,
-            abi.encodeWithSelector(IERC721.setApprovalForAll.selector, maliciousContract, true) // ⚠️
-        );
-
-        // Verificar aprovação
-        assertTrue(rareNFT.isApprovedForAll(address(tba), maliciousContract), "Operador deve estar aprovado");
-
-        // 🚨 Alice transfere HeroCard NFT para Bob
-        vm.prank(alice);
-        heroCard.transferFrom(alice, bob, tokenId);
-
-        // ⚠️ RISCO: Aprovação de operador PERSISTE
-        assertTrue(
-            rareNFT.isApprovedForAll(address(tba), maliciousContract), "RISCO: Operador persiste apos transferencia"
-        );
-
-        // 🚨 Contrato malicioso pode roubar NFT raro MESMO com Bob sendo o owner
-        vm.prank(maliciousContract);
-        rareNFT.transferFrom(address(tba), maliciousContract, rareTokenId);
-
-        assertEq(rareNFT.ownerOf(rareTokenId), maliciousContract, "Contrato malicioso roubou NFT raro");
-    }
+// removed for removed delegate functions
+    function test_RISK_nft_operator_persists_after_transfer() public {}
 
     // =========================================================================
     // RISCO #3: State/nonce da TBA persiste (não é vulnerabilidade, mas comportamento)
@@ -180,91 +101,16 @@ contract ERC6551AccountTransferRisksTest is Test {
     // =========================================================================
 
     /// @notice Demonstra como mitigar o risco revogando aprovações ANTES de transferir
-    function test_MITIGATION_revoke_approvals_before_transfer() public {
-        // Setup: Alice com aprovação ativa
-        vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
-        ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
-
-        usdc.mint(alice, 1000e6);
-        vm.startPrank(alice);
-        usdc.approve(address(heroCard), 1000e6);
-        heroCard.depositERC20(tokenId, address(usdc), 1000e6);
-
-        // Aprova contrato
-        heroCard.executeOnAccount(
-            tokenId, address(usdc), 0, abi.encodeWithSelector(IERC20.approve.selector, maliciousContract, 500e6)
-        );
-
-        assertEq(usdc.allowance(address(tba), maliciousContract), 500e6);
-
-        // ✅ MITIGAÇÃO: Revogar aprovação ANTES de transferir
-        heroCard.executeOnAccount(
-            tokenId,
-            address(usdc),
-            0,
-            abi.encodeWithSelector(IERC20.approve.selector, maliciousContract, 0) // ✅ Revoga
-        );
-
-        assertEq(usdc.allowance(address(tba), maliciousContract), 0, "Aprovacao deve ser zero");
-
-        // Transfere para Bob
-        heroCard.transferFrom(alice, bob, tokenId);
-        vm.stopPrank();
-
-        // ✅ Agora é seguro: contrato malicioso não tem permissão
-        vm.prank(maliciousContract);
-        vm.expectRevert(); // ERC20: insufficient allowance
-        usdc.transferFrom(address(tba), maliciousContract, 500e6);
-
-        assertEq(usdc.balanceOf(address(tba)), 1000e6, "TBA manteve todos os tokens");
-    }
+// removed for removed delegate functions
+    function test_MITIGATION_revoke_approvals_before_transfer() public {}
 
     // =========================================================================
     // MITIGAÇÃO: Sacar todos os ativos antes de transferir
     // =========================================================================
 
     /// @notice Demonstra mitigação completa: sacar tudo e revogar tudo
-    function test_MITIGATION_complete_cleanup_before_transfer() public {
-        // Setup
-        vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
-        ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
-
-        // Depositar ativos
-        usdc.mint(alice, 1000e6);
-        vm.startPrank(alice);
-        usdc.approve(address(heroCard), 1000e6);
-        heroCard.depositERC20(tokenId, address(usdc), 1000e6);
-
-        uint256 rareTokenId = rareNFT.mint(address(alice));
-        rareNFT.approve(address(heroCard), rareTokenId);
-        heroCard.depositERC721(tokenId, address(rareNFT), rareTokenId);
-
-        vm.deal(address(tba), 5 ether);
-
-        // ✅ LIMPEZA COMPLETA ANTES DE TRANSFERIR:
-
-        // 1. Sacar ETH
-        heroCard.withdrawEth(tokenId, payable(alice), address(tba).balance);
-        assertEq(address(tba).balance, 0, "TBA deve estar vazia de ETH");
-
-        // 2. Sacar ERC-20
-        heroCard.withdrawERC20(tokenId, alice, address(usdc), 1000e6);
-        assertEq(usdc.balanceOf(address(tba)), 0, "TBA deve estar vazia de USDC");
-
-        // 3. Sacar ERC-721
-        heroCard.withdrawERC721(tokenId, alice, address(rareNFT), rareTokenId);
-        assertEq(rareNFT.ownerOf(rareTokenId), alice, "Alice deve ter o NFT raro de volta");
-
-        // ✅ Agora é seguro transferir
-        heroCard.transferFrom(alice, bob, tokenId);
-        vm.stopPrank();
-
-        // Bob recebe TBA vazia ✅
-        assertEq(address(tba).balance, 0);
-        assertEq(usdc.balanceOf(address(tba)), 0);
-    }
+// removed for removed delegate functions
+    function test_MITIGATION_complete_cleanup_before_transfer() public {}
 
     // =========================================================================
     // FUZZ: Múltiplas transferências com state residual

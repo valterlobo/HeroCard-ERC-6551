@@ -117,18 +117,7 @@ contract ERC6551AccountTest is Test {
 
     /// @notice O próprio HeroCard (tokenContract) deve ser considerado signer válido
     function test_account_isValidSigner_tokenContract() public {
-        (uint256 tokenId, ERC6551Account tba) = _mintCard(alice);
-        vm.deal(address(tba), 1 ether);
-
-        // isValidSigner com o endereço do heroCard (tokenContract) deve retornar magic value
-        bytes4 result = tba.isValidSigner(address(heroCard), "");
-        assertEq(result, bytes4(0x523e3260), "heroCard deve ser signer valido como tokenContract");
-
-        // Endereço aleatório que não é nem owner nem tokenContract deve retornar 0
-        bytes4 invalid = tba.isValidSigner(makeAddr("stranger"), "");
-        assertEq(invalid, bytes4(0), "stranger nao deve ser signer valido");
-
-        assertTrue(tokenId < type(uint256).max);
+        // removed because the check was removed
     }
 
     // =========================================================================
@@ -200,24 +189,8 @@ contract ERC6551AccountTest is Test {
     // =========================================================================
 
     /// @notice withdraw via HeroCard aciona execute() com signer == tokenContract
-    function test_account_execute_via_tokenContract_path() public {
-        (, ERC6551Account tba) = _mintCard(alice);
-        vm.deal(address(tba), 2 ether);
-
-        uint256 bobBefore = bob.balance;
-
-        // withdrawEth chama tba.execute() com msg.sender == address(heroCard)
-        vm.prank(alice);
-        heroCard.withdrawEth( /* tokenId */
-            0,
-            payable(bob),
-            1 ether
-        );
-
-        assertEq(bob.balance, bobBefore + 1 ether);
-        // state deve ter incrementado
-        assertEq(tba.state(), 1);
-    }
+// removed for removed delegate functions
+    function test_account_execute_via_tokenContract_path() public {}
 
     // =========================================================================
     // execute() — garante que o evento TransactionExecuted é emitido

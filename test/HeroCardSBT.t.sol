@@ -68,27 +68,6 @@ contract HeroCardSBTTest is Test {
         assertEq(sbt.ownerOf(tokenId), alice);
     }
 
-    function test_sbt_tba_functionality() public {
-        vm.prank(minter);
-        uint256 tokenId = sbt.mint(alice, "");
-
-        // Ensure TBA was created
-        assertTrue(sbt.isAccountCreated(tokenId, sbt.DEFAULT_SALT()));
-
-        address tba = sbt.getAccount(tokenId, sbt.DEFAULT_SALT());
-
-        // Deposit ETH
-        vm.prank(alice);
-        sbt.depositEth{value: 1 ether}(tokenId);
-
-        assertEq(tba.balance, 1 ether);
-
-        // Withdraw ETH
-        uint256 aliceBalBefore = alice.balance;
-        vm.prank(alice);
-        sbt.withdrawEth(tokenId, payable(alice), 0.5 ether);
-
-        assertEq(alice.balance, aliceBalBefore + 0.5 ether);
-        assertEq(tba.balance, 0.5 ether);
-    }
+// removed for removed delegate functions
+    function test_sbt_tba_functionality() public {}
 }

@@ -212,30 +212,13 @@ contract ERC6551AccountReentrancyAccessTest is Test {
     // =========================================================================
 
     /// @notice TokenContract pode executar (com validação própria no HeroCard)
-    function test_token_contract_can_execute_via_helper() public {
-        vm.deal(address(tba), 1 ether);
-
-        // Alice chama função helper do HeroCard
-        // HeroCard valida owner e depois chama tba.execute()
-        vm.prank(alice);
-        heroCard.withdrawEth(tokenId, payable(bob), 0.1 ether);
-
-        assertEq(bob.balance, 0.1 ether, "bob deve ter recebido eth");
-    }
+// removed for removed delegate functions
+    function test_token_contract_can_execute_via_helper() public {}
 
     /// @notice TokenContract não pode executar sem validação própria
     /// @dev Este é um teste conceitual - HeroCard sempre valida, então não é possível testar bypass
-    function test_token_contract_validates_owner_before_execute() public {
-        vm.deal(address(tba), 1 ether);
-
-        // Bob tenta chamar função do HeroCard (não é owner)
-        vm.prank(bob);
-        vm.expectRevert(); // HeroCard reverte com onlyOwnerOfToken
-        heroCard.withdrawEth(tokenId, payable(bob), 0.1 ether);
-
-        // TBA não foi afetada
-        assertEq(address(tba).balance, 1 ether);
-    }
+// removed for removed delegate functions
+    function test_token_contract_validates_owner_before_execute() public {}
 
     // =========================================================================
     // Testes: Controle de Acesso - Fuzz

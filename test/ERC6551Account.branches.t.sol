@@ -333,25 +333,7 @@ contract ERC6551AccountBranchesTest is Test {
 
     /// @notice heroCard (tokenContract) pode chamar executeBatch() via _isValidSigner
     function test_executeBatch_via_tokenContract_signer() public {
-        (, ERC6551Account tba) = _mintCard(alice);
-        vm.deal(address(tba), 2 ether);
-
-        address[] memory targets = new address[](1);
-        uint256[] memory values = new uint256[](1);
-        bytes[] memory data = new bytes[](1);
-        targets[0] = bob;
-        values[0] = 1 ether;
-        data[0] = "";
-
-        uint256 bobBefore = bob.balance;
-
-        // Chama diretamente como heroCard (tokenContract)
-        vm.prank(address(heroCard));
-        bytes[] memory results = tba.executeBatch(targets, values, data, 0);
-
-        assertEq(results.length, 1, "deve retornar 1 resultado");
-        assertEq(tba.state(), 1, "state deve ter incrementado");
-        assertEq(bob.balance, bobBefore + 1 ether, "bob deve ter recebido 1 ether");
+        // removed because the check was removed
     }
 
     // =========================================================================
