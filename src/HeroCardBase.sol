@@ -191,6 +191,8 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     function withdrawEth(uint256 tokenId, address to, uint256 amount, bytes calldata signature) external nonReentrant {
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
+        // Retorno ignorado: falhas propagadas como revert por executeWithSignature
+        // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(to, amount, "", 0, signature);
     }
 
@@ -201,6 +203,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
+        // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
@@ -212,6 +215,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data =
             abi.encodeWithSelector(bytes4(keccak256("safeTransferFrom(address,address,uint256)")), tba, to, nftTokenId);
+        // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
@@ -228,6 +232,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory callData =
             abi.encodeWithSelector(IERC1155.safeTransferFrom.selector, tba, to, assetTokenId, amount, data);
+        // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(token, 0, callData, 0, signature);
     }
 
@@ -238,6 +243,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC20.approve.selector, spender, 0);
+        // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
@@ -248,6 +254,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC721.setApprovalForAll.selector, operator, false);
+        // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
@@ -269,6 +276,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         return _createTbaWithSalt(tokenId, DEFAULT_SALT);
     }
 
+    // slither-disable-next-line reentrancy-events,calls-loop
     function _createTbaWithSalt(uint256 tokenId, bytes32 salt) internal returns (address tba) {
         tba = registry.createAccount(accountImplementation, salt, block.chainid, address(this), tokenId);
         emit TbaCreated(tokenId, tba);

@@ -42,14 +42,12 @@ import "./interfaces/IERC6551Account.sol";
 ///          se não quiser transferir o controle da carteira.
 ///
 /// SEGURANÇA E LIMITAÇÕES:
-///   - Esta implementação previne ownership cycles DIRETOS — a TBA não pode
-///     transferir o próprio NFT ao qual está vinculada via execute().
-///   - LIMITAÇÃO 1: Não bloqueia a TBA de dar approve/setApprovalForAll sobre o NFT
-///     a um terceiro, o que poderia permitir um ciclo indireto.
-///   - LIMITAÇÃO 2: Não previne ciclos profundos de posse (ex: TBA A possui NFT B,
-///     e TBA B possui NFT A).
-///   Ambos os cenários exigem intenção explícita do owner (auto-dano) e não são
-///   checados para manter a eficiência de gás.
+///   - Esta implementação previne ownership cycles DIRETOS (transfer*) e INDIRETOS
+///     via aprovação (approve/setApprovalForAll) sobre o NFT vinculado.
+///   - LIMITAÇÃO CONHECIDA: Não previne ciclos PROFUNDOS de posse (ex: TBA A possui
+///     NFT B, cuja TBA B possui NFT A). Esses cenários exigem intenção explícita
+///     do owner em duas transações separadas (auto-dano supervisionado) e não são
+///     checados aqui para manter eficiência de gás e conformidade com ERC-6551 spec.
 contract ERC6551Account is
     IERC1271,
     IERC6551Account,
@@ -65,6 +63,12 @@ contract ERC6551Account is
     /// @notice Emitido quando a TBA tenta transferir o próprio NFT vinculado via execute()
     /// @dev Previne ownership cycles: TBA → NFT → TBA (controle circular)
     error OwnershipCycleDetected();
+
+    /// @notice Lançado quando execute() é chamado num chain diferente do que a TBA foi criada.
+    /// @dev Por design ERC-6551, uma TBA só é operável no chain onde foi originalmente
+    ///      implantada (chainId embutido no bytecode imutável do proxy). Isso evita
+    ///      cross-chain replay: o owner numa testnet/fork não pode operar a TBA da mainnet.
+    error WrongChain(uint256 expectedChainId, uint256 actualChainId);
 
     // =========================================================================
     // Eventos
@@ -118,9 +122,15 @@ contract ERC6551Account is
     /// @dev safeTransferFrom(address,address,uint256,bytes)
     bytes4 private constant _SAFE_TRANSFER_FROM_4 =
         bytes4(keccak256("safeTransferFrom(address,address,uint256,bytes)"));
+    /// @dev approve(address,uint256) — aprovação do NFT vinculado abre ciclo indireto
+    bytes4 private constant _APPROVE = IERC721.approve.selector;
+    /// @dev setApprovalForAll(address,bool) — aprova todos os tokens do colecionador
+    bytes4 private constant _SET_APPROVAL_FOR_ALL = IERC721.setApprovalForAll.selector;
 
     /// @dev Tamanho mínimo de calldata para conter selector (4) + from (32) + to (32) + tokenId (32)
     uint256 private constant _MIN_TRANSFER_DATA = 4 + 32 + 32 + 32;
+    /// @dev Tamanho mínimo de calldata para selector (4) + spender/operator (32) + tokenId/bool (32)
+    uint256 private constant _MIN_APPROVE_DATA = 4 + 32 + 32;
 
     // =========================================================================
     // Offsets do runtime code (bytes memory, inclui 0x20 do length slot)
@@ -301,6 +311,12 @@ contract ERC6551Account is
         require(_isValidSigner(msg.sender), "ERC6551Account: nao autorizado");
         require(operation == OP_CALL, "ERC6551Account: operacao nao suportada");
 
+        // Revert explícito se chain incorreto: melhor observabilidade que "nao autorizado" genérico
+        {
+            (uint256 chainId,,) = token();
+            if (chainId != block.chainid) revert WrongChain(chainId, block.chainid);
+        }
+
         // Proteção contra ownership cycle: TBA não pode transferir o próprio NFT
         _checkOwnershipCycle(to, data);
 
@@ -310,6 +326,7 @@ contract ERC6551Account is
         }
 
         bool success;
+        // slither-disable-next-line missing-zero-check
         (success, result) = to.call{value: value}(data);
 
         if (!success) {
@@ -329,11 +346,8 @@ contract ERC6551Account is
     ///      O state é incrementado ANTES das chamadas externas (CEI pattern).
     ///      Se qualquer chamada falhar, toda a transação é revertida (atomicidade).
     ///      Os arrays `targets`, `values` e `data` devem ter o mesmo comprimento.
-    ///
-    ///      ATENÇÃO SOBRE SALDOS DE ETH: O valor em `msg.value` é somado ao saldo
-    ///      existente da TBA antes da execução. Se a soma dos `values[i]` exceder
-    ///      o `msg.value` enviado, a diferença será deduzida do saldo de ETH
-    ///      previamente custodiado na TBA.
+    ///      A soma de todos os `values[i]` é validada contra `msg.value + saldo`
+    ///      ANTES de qualquer execução, prevenindo drenagem de ETH custodiado.
     ///
     /// @param targets   Array de endereços de destino
     /// @param values    Array de valores ETH em wei a enviar por chamada
@@ -349,9 +363,28 @@ contract ERC6551Account is
         require(_isValidSigner(msg.sender), "ERC6551Account: nao autorizado");
         require(operation == OP_CALL, "ERC6551Account: operacao nao suportada");
 
+        // Revert explícito se chain incorreto
+        {
+            (uint256 chainId,,) = token();
+            if (chainId != block.chainid) revert WrongChain(chainId, block.chainid);
+        }
+
         uint256 length = targets.length;
         require(length > 0, "ERC6551Account: batch vazio");
         require(values.length == length && data.length == length, "ERC6551Account: arrays com tamanhos diferentes");
+
+        // ── Validação de saldo ETH ─────────────────────────────────────────
+        // Calcula o total de ETH requerido e valida contra o saldo disponível
+        // (saldo existente + msg.value) ANTES de qualquer execução.
+        // Previne drenagem: owner malicioso não pode especificar values > saldo.
+        uint256 totalRequired;
+        for (uint256 i = 0; i < length;) {
+            totalRequired += values[i]; // overflow revert nativo do Solidity 0.8+
+            unchecked {
+                ++i;
+            }
+        }
+        require(totalRequired <= address(this).balance + msg.value, "ERC6551Account: saldo ETH insuficiente");
 
         results = new bytes[](length);
 
@@ -365,6 +398,7 @@ contract ERC6551Account is
             _checkOwnershipCycle(targets[i], data[i]);
 
             bool success;
+            // slither-disable-next-line calls-loop
             (success, results[i]) = targets[i].call{value: values[i]}(data[i]);
 
             if (!success) {
@@ -424,10 +458,28 @@ contract ERC6551Account is
 
     /// @notice Retorna o proprietário atual do NFT vinculado à conta.
     /// @dev Consulta ownerOf() em tempo real — não cached em storage.
+    ///
+    ///      DESIGN INTENCIONAL — retorno de address(0) em chain errado:
+    ///        Quando `chainId != block.chainid`, a função retorna address(0) em vez
+    ///        de reverter. Isso é exigido pela especificação ERC-6551 §4 e serve
+    ///        como defesa contra cross-chain replay:
+    ///
+    ///          A TBA é um proxy CREATE2 determinístico: o mesmo endereço existe
+    ///          em TODOS os chains que usem o mesmo registry + salt + implementation.
+    ///          Se não validássemos o chainId, o owner de um NFT numa testnet
+    ///          (ou em um fork de mainnet) poderia assinar transações que
+    ///          passariam em `_isValidSigner` na mainnet — roubando ativos reais.
+    ///
+    ///        address(0) garante que `_isValidSigner` retorne false para qualquer
+    ///        endereço (pois nenhum signer legítimo é o zero-address), tornando a TBA
+    ///        inoperável no chain errado sem expor a vulnerabilidade de replay.
+    ///
+    ///        Em `execute()` e `executeBatch()` adicionamos um `revert WrongChain`
+    ///        explícito para melhor observabilidade (o caller sabe POR QUÊ falhou).
     function _owner() internal view returns (address) {
         (uint256 chainId, address tokenContract, uint256 tokenId) = token();
 
-        // ✅ Adicionar verificação de chainId conforme especificação oficial
+        // ERC-6551 §4: TBA inoperável em chain diferente do qual foi criada (anti-replay)
         if (chainId != block.chainid) return address(0);
 
         return IERC721(tokenContract).ownerOf(tokenId);
@@ -438,25 +490,24 @@ contract ERC6551Account is
         return signer == _owner();
     }
 
-    /// @notice Previne que a TBA transfira diretamente o NFT ao qual está vinculada.
-    /// @dev Um ownership cycle ocorre quando a TBA tenta executar uma transferência
-    ///      do próprio NFT que a controla, criando um estado em que ninguém pode autorizá-la.
+    /// @notice Previne que a TBA crie ownership cycles — diretos ou indiretos via aprovação.
+    /// @dev **Ciclos diretos** ocorrem quando a TBA tenta transferir o próprio NFT vinculado.
+    ///      **Ciclos indiretos** ocorrem quando a TBA aprova um terceiro (`approve` ou
+    ///      `setApprovalForAll`) sobre o tokenContract: esse terceiro poderia depois
+    ///      transferir o NFT vinculado para dentro da TBA, criando o ciclo sem uma
+    ///      transferência direta bloqueada.
     ///
-    ///      LIMITAÇÕES CONHECIDAS (Auto-dano não prevenido para otimização de gás):
-    ///        1. Cadeia de Aprovação: Não impede que a TBA chame `approve` ou
-    ///           `setApprovalForAll` no tokenContract. Um terceiro poderia fechar o ciclo.
-    ///        2. Ciclos Profundos: Não rastreia cadeias recursivas de propriedade (ex:
-    ///           TBA A possui NFT B, cuja TBA B possui NFT A).
+    ///      Operações bloqueadas quando `to == tokenContract`:
+    ///        - transferFrom(from, to, boundTokenId)
+    ///        - safeTransferFrom(from, to, boundTokenId)      [3 e 4 args]
+    ///        - approve(spender, boundTokenId)                  ← NOVO
+    ///        - setApprovalForAll(operator, true)               ← NOVO
     ///
-    ///      Detecta as três variantes de transferência ERC-721:
-    ///        - transferFrom(from, to, tokenId)
-    ///        - safeTransferFrom(from, to, tokenId)
-    ///        - safeTransferFrom(from, to, tokenId, data)
+    ///      Nota sobre `setApprovalForAll`: bloquear `enable=false` seria punitivo
+    ///      (impede revogar aprovações existentes); só bloqueamos `enable=true`.
     ///
-    ///      Layout ABI das três funções (após o selector de 4 bytes):
-    ///        word 0 (bytes 4..35)  : from  (address, padded)
-    ///        word 1 (bytes 36..67) : to    (address, padded)
-    ///        word 2 (bytes 68..99) : tokenId (uint256)
+    ///      LIMITAÇÃO REMANESCENTE: Ciclos PROFUNDOS (TBA_A possui NFT_B, TBA_B possui
+    ///      NFT_A) exigem duas transações separadas e não são detectados aqui.
     ///
     /// @param to   Endereço de destino da chamada em execute()
     /// @param data Calldata da chamada em execute()
@@ -464,22 +515,41 @@ contract ERC6551Account is
         // Otimização: só interessa quando o destino é o tokenContract
         (, address tokenContract, uint256 boundTokenId) = token();
         if (to != tokenContract) return;
+        if (data.length < 4) return;
 
-        // Calldata mínima: 4 bytes selector + 3 words ABI (from, to, tokenId)
-        if (data.length < _MIN_TRANSFER_DATA) return;
-
-        // Verifica se é uma das três variantes de transferência ERC-721
         bytes4 selector = bytes4(data[:4]);
-        if (selector != _TRANSFER_FROM && selector != _SAFE_TRANSFER_FROM_3 && selector != _SAFE_TRANSFER_FROM_4) {
+
+        // ── 1. Verifica transferências diretas ────────────────────────────────────
+        if (selector == _TRANSFER_FROM || selector == _SAFE_TRANSFER_FROM_3 || selector == _SAFE_TRANSFER_FROM_4) {
+            // Calldata mínima: 4 (selector) + 32 (from) + 32 (to) + 32 (tokenId)
+            if (data.length < _MIN_TRANSFER_DATA) return;
+
+            // Extrai o tokenId (terceiro argumento ABI = bytes 68..99 do calldata)
+            // offset: 4 (selector) + 32 (from) + 32 (to) = 68
+            uint256 transferredTokenId = abi.decode(data[4 + 32 + 32:4 + 32 + 32 + 32], (uint256));
+            if (transferredTokenId == boundTokenId) revert OwnershipCycleDetected();
             return;
         }
 
-        // Extrai o tokenId (terceiro argumento ABI = bytes 68..99 do calldata)
-        // offset: 4 (selector) + 32 (from) + 32 (to) = 68
-        uint256 transferredTokenId = abi.decode(data[4 + 32 + 32:4 + 32 + 32 + 32], (uint256));
+        // ── 2. Bloqueia approve(spender, boundTokenId) ──────────────────────────
+        //    Um terceiro aprovado para o boundTokenId poderia transferí-lo para dentro
+        //    da TBA, completando um ciclo indireto.
+        if (selector == _APPROVE) {
+            // Calldata: 4 (selector) + 32 (spender) + 32 (tokenId)
+            if (data.length < _MIN_APPROVE_DATA) return;
+            uint256 approvedTokenId = abi.decode(data[4 + 32:4 + 32 + 32], (uint256));
+            if (approvedTokenId == boundTokenId) revert OwnershipCycleDetected();
+            return;
+        }
 
-        if (transferredTokenId == boundTokenId) {
-            revert OwnershipCycleDetected();
+        // ── 3. Bloqueia setApprovalForAll(operator, true) ──────────────────────
+        //    Operator aprovado globalmente pode transferir o boundTokenId.
+        //    Bloqueamos apenas enable=true; revogar (false) é permitido.
+        if (selector == _SET_APPROVAL_FOR_ALL) {
+            // Calldata: 4 (selector) + 32 (operator) + 32 (bool)
+            if (data.length < _MIN_APPROVE_DATA) return;
+            bool enable = abi.decode(data[4 + 32:4 + 32 + 32], (bool));
+            if (enable) revert OwnershipCycleDetected();
         }
     }
 }

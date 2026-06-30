@@ -337,6 +337,85 @@ contract ERC6551AccountBranchesTest is Test {
     }
 
     // =========================================================================
+    // executeBatch() — prevenção de drenagem de ETH (CRÍTICO)
+    // =========================================================================
+
+    /// @notice Garante que executeBatch não drena ETH custodiado além do permitido
+    /// @dev Cenário do relatório de auditoria: TBA tem 10 ETH acumulados.
+    ///      Atacante tenta enviar 15 + 15 ETH via batch com msg.value=0.
+    ///      Deve reverter com "saldo ETH insuficiente".
+    function test_executeBatch_cannot_drain_eth_beyond_balance() public {
+        (, ERC6551Account tba) = _mintCard(alice);
+
+        // Financia a TBA com 10 ETH custodiados
+        vm.deal(address(tba), 10 ether);
+
+        address[] memory targets = new address[](2);
+        uint256[] memory values = new uint256[](2);
+        bytes[] memory data = new bytes[](2);
+
+        targets[0] = bob;
+        values[0] = 15 ether; // > saldo total
+        data[0] = "";
+
+        targets[1] = bob;
+        values[1] = 15 ether;
+        data[1] = "";
+
+        // Atacante (owner) tenta drenar: valores somam 30 ETH > saldo 10 ETH
+        vm.prank(alice);
+        vm.expectRevert("ERC6551Account: saldo ETH insuficiente");
+        tba.executeBatch(targets, values, data, 0);
+    }
+
+    /// @notice Garante que executeBatch permite usar exatamente todo o saldo disponível
+    function test_executeBatch_allows_full_balance_usage() public {
+        (, ERC6551Account tba) = _mintCard(alice);
+
+        vm.deal(address(tba), 3 ether);
+
+        address[] memory targets = new address[](2);
+        uint256[] memory values = new uint256[](2);
+        bytes[] memory data = new bytes[](2);
+
+        targets[0] = bob;
+        values[0] = 2 ether;
+        data[0] = "";
+
+        targets[1] = bob;
+        values[1] = 1 ether; // total = 3 ether == saldo exato
+        data[1] = "";
+
+        uint256 bobBefore = bob.balance;
+        vm.prank(alice);
+        tba.executeBatch(targets, values, data, 0);
+
+        assertEq(bob.balance, bobBefore + 3 ether);
+        assertEq(address(tba).balance, 0);
+    }
+
+    /// @notice Fuzz: valores que somam além do saldo sempre devem reverter
+    function testFuzz_executeBatch_eth_drain_reverts(uint96 balance, uint96 extra) public {
+        vm.assume(extra > 0);
+        vm.assume(uint256(balance) + extra <= type(uint96).max); // evita overflow no teste
+
+        (, ERC6551Account tba) = _mintCard(alice);
+        vm.deal(address(tba), balance);
+
+        address[] memory targets = new address[](1);
+        uint256[] memory values = new uint256[](1);
+        bytes[] memory data = new bytes[](1);
+
+        targets[0] = bob;
+        values[0] = uint256(balance) + extra; // sempre > saldo
+        data[0] = "";
+
+        vm.prank(alice);
+        vm.expectRevert("ERC6551Account: saldo ETH insuficiente");
+        tba.executeBatch(targets, values, data, 0);
+    }
+
+    // =========================================================================
     // executeBatch() — fuzz: qualquer operation != 0 rejeitada
     // =========================================================================
 

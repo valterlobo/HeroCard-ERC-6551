@@ -360,4 +360,75 @@ contract ERC6551AccountOwnershipCycleTest is Test {
             );
         }
     }
+
+    // =========================================================================
+    // Proteção contra ciclos INDIRETOS via approve (Limitação 1 — CORRIGIDA)
+    // =========================================================================
+
+    /// @notice approve(spender, boundTokenId) no tokenContract deve reverter
+    function test_cycle_approve_bound_tokenId_reverts() public {
+        (uint256 tokenId, ERC6551Account tba) = _mintCard(alice);
+
+        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("approve(address,uint256)")), bob, tokenId);
+
+        vm.prank(alice);
+        vm.expectRevert(ERC6551Account.OwnershipCycleDetected.selector);
+        tba.execute(address(heroCard), 0, data, 0);
+    }
+
+    /// @notice approve de tokenId DIFERENTE é permitido
+    function test_cycle_approve_different_tokenId_allowed() public {
+        (uint256 tokenId, ERC6551Account tba) = _mintCard(alice);
+
+        vm.prank(minter);
+        uint256 otherTokenId = heroCard.mint(alice, "");
+
+        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("approve(address,uint256)")), bob, otherTokenId);
+
+        vm.prank(alice);
+        try tba.execute(address(heroCard), 0, data, 0) {}
+        catch (bytes memory reason) {
+            bytes4 errSel = bytes4(reason);
+            assertNotEq(errSel, ERC6551Account.OwnershipCycleDetected.selector);
+        }
+    }
+
+    /// @notice setApprovalForAll(operator, true) no tokenContract deve reverter
+    function test_cycle_setApprovalForAll_true_reverts() public {
+        (, ERC6551Account tba) = _mintCard(alice);
+
+        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("setApprovalForAll(address,bool)")), bob, true);
+
+        vm.prank(alice);
+        vm.expectRevert(ERC6551Account.OwnershipCycleDetected.selector);
+        tba.execute(address(heroCard), 0, data, 0);
+    }
+
+    /// @notice setApprovalForAll(operator, false) é permitido (revogação)
+    function test_cycle_setApprovalForAll_false_allowed() public {
+        (, ERC6551Account tba) = _mintCard(alice);
+
+        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("setApprovalForAll(address,bool)")), bob, false);
+
+        vm.prank(alice);
+        try tba.execute(address(heroCard), 0, data, 0) {}
+        catch (bytes memory reason) {
+            bytes4 errSel = bytes4(reason);
+            assertNotEq(errSel, ERC6551Account.OwnershipCycleDetected.selector, "revogar aprovacao deve ser permitido");
+        }
+    }
+
+    /// @notice setApprovalForAll num contrato diferente do tokenContract é permitido
+    function test_cycle_setApprovalForAll_other_contract_allowed() public {
+        (, ERC6551Account tba) = _mintCard(alice);
+
+        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("setApprovalForAll(address,bool)")), bob, true);
+
+        vm.prank(alice);
+        try tba.execute(address(otherNFT), 0, data, 0) {}
+        catch (bytes memory reason) {
+            bytes4 errSel = bytes4(reason);
+            assertNotEq(errSel, ERC6551Account.OwnershipCycleDetected.selector);
+        }
+    }
 }
