@@ -212,12 +212,12 @@ contract ERC6551AccountReentrancyAccessTest is Test {
     // =========================================================================
 
     /// @notice TokenContract pode executar (com validação própria no HeroCard)
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_token_contract_can_execute_via_helper() public {}
 
     /// @notice TokenContract não pode executar sem validação própria
     /// @dev Este é um teste conceitual - HeroCard sempre valida, então não é possível testar bypass
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_token_contract_validates_owner_before_execute() public {}
 
     // =========================================================================

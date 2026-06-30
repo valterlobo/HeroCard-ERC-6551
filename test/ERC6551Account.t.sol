@@ -189,7 +189,7 @@ contract ERC6551AccountTest is Test {
     // =========================================================================
 
     /// @notice withdraw via HeroCard aciona execute() com signer == tokenContract
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_account_execute_via_tokenContract_path() public {}
 
     // =========================================================================

@@ -45,15 +45,15 @@ contract HeroCardCoverageTest is Test {
         vm.stopPrank();
     }
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_revokeERC20Approvals_success() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_revokeERC20Approvals_reverts_different_length() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_revokeERC721Operators_success() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_revokeERC721Operators_reverts_different_length() public {}
 }

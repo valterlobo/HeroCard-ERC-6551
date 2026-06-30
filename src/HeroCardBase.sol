@@ -14,6 +14,16 @@ import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/
 import "./interfaces/IERC6551Registry.sol";
 import "./interfaces/IERC6551Account.sol";
 
+interface IHeroCardAccount {
+    function executeWithSignature(
+        address to,
+        uint256 value,
+        bytes calldata data,
+        uint8 operation,
+        bytes calldata signature
+    ) external payable returns (bytes memory);
+}
+
 /// @title HeroCardBase
 /// @notice Contrato ERC-721 abstrato base para "Cartões Virtuais" com integração ERC-6551 (Token Bound Accounts)
 abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, AccessControl, ReentrancyGuard {
@@ -158,6 +168,87 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _requireOwned(tokenId);
         address tba = _getOrCreateTba(tokenId);
         IERC1155(tokenContract).safeTransferFrom(msg.sender, tba, assetTokenId, amount, "");
+    }
+
+    // =========================================================================
+    // Meta-Transactions (Wrapper)
+    // =========================================================================
+
+    function executeOnAccount(
+        uint256 tokenId,
+        address to,
+        uint256 value,
+        bytes calldata data,
+        uint8 operation,
+        bytes calldata signature
+    ) external payable nonReentrant returns (bytes memory) {
+        _requireOwned(tokenId);
+        address tba = getAccount(tokenId, DEFAULT_SALT);
+
+        return IHeroCardAccount(tba).executeWithSignature{value: msg.value}(to, value, data, operation, signature);
+    }
+
+    function withdrawEth(uint256 tokenId, address to, uint256 amount, bytes calldata signature) external nonReentrant {
+        _requireOwned(tokenId);
+        address tba = getAccount(tokenId, DEFAULT_SALT);
+        IHeroCardAccount(tba).executeWithSignature(to, amount, "", 0, signature);
+    }
+
+    function withdrawERC20(uint256 tokenId, address token, address to, uint256 amount, bytes calldata signature)
+        external
+        nonReentrant
+    {
+        _requireOwned(tokenId);
+        address tba = getAccount(tokenId, DEFAULT_SALT);
+        bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+    }
+
+    function withdrawERC721(uint256 tokenId, address token, address to, uint256 nftTokenId, bytes calldata signature)
+        external
+        nonReentrant
+    {
+        _requireOwned(tokenId);
+        address tba = getAccount(tokenId, DEFAULT_SALT);
+        bytes memory data =
+            abi.encodeWithSelector(bytes4(keccak256("safeTransferFrom(address,address,uint256)")), tba, to, nftTokenId);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+    }
+
+    function withdrawERC1155(
+        uint256 tokenId,
+        address token,
+        address to,
+        uint256 assetTokenId,
+        uint256 amount,
+        bytes calldata data,
+        bytes calldata signature
+    ) external nonReentrant {
+        _requireOwned(tokenId);
+        address tba = getAccount(tokenId, DEFAULT_SALT);
+        bytes memory callData =
+            abi.encodeWithSelector(IERC1155.safeTransferFrom.selector, tba, to, assetTokenId, amount, data);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, callData, 0, signature);
+    }
+
+    function revokeERC20Approvals(uint256 tokenId, address token, address spender, bytes calldata signature)
+        external
+        nonReentrant
+    {
+        _requireOwned(tokenId);
+        address tba = getAccount(tokenId, DEFAULT_SALT);
+        bytes memory data = abi.encodeWithSelector(IERC20.approve.selector, spender, 0);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+    }
+
+    function revokeERC721Operators(uint256 tokenId, address token, address operator, bytes calldata signature)
+        external
+        nonReentrant
+    {
+        _requireOwned(tokenId);
+        address tba = getAccount(tokenId, DEFAULT_SALT);
+        bytes memory data = abi.encodeWithSelector(IERC721.setApprovalForAll.selector, operator, false);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
     function totalSupply() external view returns (uint256) {

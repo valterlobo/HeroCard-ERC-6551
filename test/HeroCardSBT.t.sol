@@ -68,6 +68,6 @@ contract HeroCardSBTTest is Test {
         assertEq(sbt.ownerOf(tokenId), alice);
     }
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_sbt_tba_functionality() public {}
 }

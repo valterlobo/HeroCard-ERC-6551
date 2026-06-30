@@ -145,7 +145,7 @@ contract ERC6551Account is
     /// @dev Protege contra replay attacks e identifica o estado atual da conta.
     ///      Armazenado no storage do PROXY (não da implementação), pois a conta
     ///      é acessada via delegatecall do proxy EIP-1167.
-    uint256 private _state;
+    uint256 internal _state;
 
     // =========================================================================
     // Receive ETH

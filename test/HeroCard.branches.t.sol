@@ -167,7 +167,7 @@ contract HeroCardBranchesTest is Test {
     // L232 — executeOnAccount: TBA não criada → revert
     // (usa um tokenId cujo proxy ainda não foi deployado via createAccountIfNeeded)
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_executeOnAccount_no_tba_reverts() public {}
 
     // =========================================================================
@@ -215,70 +215,70 @@ contract HeroCardBranchesTest is Test {
     // =========================================================================
     // L311 — withdrawEth: to == address(0) → revert
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawEth_zero_to_reverts() public {}
 
     // =========================================================================
     // L312 — withdrawEth: amount == 0 → revert
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawEth_zero_amount_reverts() public {}
 
     // =========================================================================
     // L315 — withdrawEth: TBA não criada → revert
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawEth_no_tba_reverts() public {}
 
     // =========================================================================
     // L319 — withdrawEth: result.length > 0 && decode false → revert
     // (Testamos o ramo onde result.length == 0, que é o caminho normal de ETH)
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawEth_result_empty_branch() public {}
 
     // =========================================================================
     // L332 — withdrawERC20: to == address(0) → revert
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC20_zero_to_reverts() public {}
 
     // =========================================================================
     // L333 — withdrawERC20: amount == 0 → revert
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC20_zero_amount_reverts() public {}
 
     // =========================================================================
     // L336 — withdrawERC20: TBA não criada → revert
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC20_no_tba_reverts() public {}
 
     // =========================================================================
     // L342 — withdrawERC20: result decode branch (caminho normal: length == 0)
     //         MockERC20.transfer retorna bool true → result.length > 0, decode == true
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC20_result_bool_true_branch() public {}
 
     // =========================================================================
     // L355 — withdrawERC721: to == address(0) → revert
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC721_zero_to_reverts() public {}
 
     // =========================================================================
     // L358 — withdrawERC721: TBA não criada → revert
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC721_no_tba_reverts() public {}
 
     // =========================================================================
     // L365 — withdrawERC721: result decode branch
     //         safeTransferFrom retorna void → result.length == 0 → passa
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC721_result_empty_branch() public {}
 
     // =========================================================================
@@ -333,16 +333,16 @@ contract HeroCardBranchesTest is Test {
         assertEq(gem.balanceOf(tba, 1), 200);
     }
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC1155_success() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC1155_zero_to_reverts() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC1155_no_tba_reverts() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC1155_only_owner() public {}
 
     // =========================================================================
@@ -459,32 +459,32 @@ contract HeroCardBranchesTest is Test {
     // Estratégia: vm.etch substitui o bytecode da TBA pelo de FalsyTBA,
     // que implementa execute() retornando abi.encode(false).
     // =========================================================================
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawEth_result_false_reverts() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC20_result_false_reverts() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC721_result_false_reverts() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC1155_result_false_reverts() public {}
 
     // =========================================================================
     // Coverage para revokeERC20Approvals e revokeERC721Operators
     // =========================================================================
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_revokeERC20Approvals_success() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_revokeERC20Approvals_reverts_different_length() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_revokeERC721Operators_success() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_revokeERC721Operators_reverts_different_length() public {}
 
     function test_safeMint_direct_call() public {

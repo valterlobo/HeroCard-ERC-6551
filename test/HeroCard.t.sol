@@ -190,10 +190,10 @@ contract HeroCardTest is Test {
         assertEq(address(tba).balance, 1 ether);
     }
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawEth() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdraw_eth_only_owner() public {}
 
     // =========================================================================
@@ -218,7 +218,7 @@ contract HeroCardTest is Test {
         assertEq(gold.balanceOf(tba), 500e18);
     }
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC20() public {}
 
     // =========================================================================
@@ -242,24 +242,24 @@ contract HeroCardTest is Test {
         assertEq(sword.ownerOf(swordId), tba);
     }
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_withdrawERC721() public {}
 
     // =========================================================================
     // Testes: executeOnAccount
     // =========================================================================
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_executeOnAccount_eth_transfer() public {}
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_executeOnAccount_only_owner() public {}
 
     // =========================================================================
     // Testes: Transferência de NFT transfere controle da TBA
     // =========================================================================
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_tba_control_transfers_with_nft() public {}
 
     // =========================================================================
@@ -345,6 +345,38 @@ contract HeroCardTest is Test {
         assertTrue(tba1 != tba2, "TBAs devem ser unicas por token");
     }
 
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function testFuzz_deposit_withdraw_eth(uint96 amount) public {}
+
+    function test_metaTransaction_executeOnAccount() public {
+        uint256 privKey = 0xA11CE;
+        address signer = vm.addr(privKey);
+
+        vm.prank(minter);
+        uint256 tokenId = heroCard.mint(signer, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        vm.deal(tba, 5 ether);
+
+        uint256 bobBalanceBefore = bob.balance;
+
+        uint256 value = 1 ether;
+        bytes memory data = "";
+        uint8 operation = 0;
+
+        uint256 state = IERC6551Account(payable(tba)).state();
+
+        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, value, keccak256(data), operation, state));
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // Qualquer um pode enviar a transacao agora (relayer)
+        vm.prank(address(0x123));
+        heroCard.executeOnAccount(tokenId, bob, value, data, operation, signature);
+
+        assertEq(bob.balance, bobBalanceBefore + value);
+        assertEq(IERC6551Account(payable(tba)).state(), state + 1);
+    }
 }

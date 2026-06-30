@@ -45,7 +45,7 @@ contract ERC6551AccountTransferRisksTest is Test {
 
     /// @notice Demonstra que aprovações ERC-20 persistem após transferir o NFT
     /// @dev Este é comportamento ESPERADO do ERC-6551, mas representa RISCO SIGNIFICATIVO
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_RISK_erc20_approval_persists_after_transfer() public {}
 
     // =========================================================================
@@ -53,7 +53,7 @@ contract ERC6551AccountTransferRisksTest is Test {
     // =========================================================================
 
     /// @notice Demonstra que setApprovalForAll persiste após transferir o NFT
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_RISK_nft_operator_persists_after_transfer() public {}
 
     // =========================================================================
@@ -101,7 +101,7 @@ contract ERC6551AccountTransferRisksTest is Test {
     // =========================================================================
 
     /// @notice Demonstra como mitigar o risco revogando aprovações ANTES de transferir
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_MITIGATION_revoke_approvals_before_transfer() public {}
 
     // =========================================================================
@@ -109,7 +109,7 @@ contract ERC6551AccountTransferRisksTest is Test {
     // =========================================================================
 
     /// @notice Demonstra mitigação completa: sacar tudo e revogar tudo
-// removed for removed delegate functions
+    // removed for removed delegate functions
     function test_MITIGATION_complete_cleanup_before_transfer() public {}
 
     // =========================================================================
