@@ -37,7 +37,8 @@ contract ERC6551AccountNonceTest is Test {
     /// @dev Verifica CEI pattern: incremento ANTES da external call
     function test_state_increments_on_execute() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // State inicial é 0
@@ -74,10 +75,13 @@ contract ERC6551AccountNonceTest is Test {
     /// @dev Verifica que cada TBA tem seu próprio state independente
     function test_state_persists_in_proxy_storage() public {
         // Criar duas TBAs diferentes
-        vm.startPrank(minter);
-        uint256 tokenId1 = heroCard.mint(alice, "");
-        uint256 tokenId2 = heroCard.mint(alice, "");
-        vm.stopPrank();
+        uint256 tokenId1 = 2;
+        vm.prank(minter);
+        heroCard.mint(alice, tokenId1, "");
+
+        uint256 tokenId2 = 3;
+        vm.prank(minter);
+        heroCard.mint(alice, tokenId2, "");
 
         ERC6551Account tba1 = ERC6551Account(payable(heroCard.getAccount(tokenId1, heroCard.DEFAULT_SALT())));
         ERC6551Account tba2 = ERC6551Account(payable(heroCard.getAccount(tokenId2, heroCard.DEFAULT_SALT())));
@@ -120,7 +124,8 @@ contract ERC6551AccountNonceTest is Test {
     /// @dev Mesmo que chamada externa reverta, state já foi incrementado
     function test_state_increments_even_on_revert() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 4;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         assertEq(tba.state(), 0, "state inicial deve ser 0");
@@ -153,7 +158,8 @@ contract ERC6551AccountNonceTest is Test {
     /// @dev 2^256 execuções é astronomicamente impossível
     function test_state_overflow_impossible() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 5;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Demonstração: mesmo após muitas execuções, está longe de overflow
@@ -192,7 +198,8 @@ contract ERC6551AccountNonceTest is Test {
     /// @dev Execute() requer msg.sender == owner (não usa assinaturas)
     function test_no_meta_transaction_support() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 6;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // NÃO existe função executeWithSignature()
@@ -222,7 +229,8 @@ contract ERC6551AccountNonceTest is Test {
         address aliceAddr = vm.addr(aliceKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(aliceAddr, "");
+        uint256 tokenId = 7;
+        heroCard.mint(aliceAddr, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         bytes32 hash = keccak256("test message");
@@ -267,7 +275,8 @@ contract ERC6551AccountNonceTest is Test {
     /// @dev Novo owner herda o state acumulado (comportamento esperado)
     function test_state_persists_after_nft_transfer() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 8;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Alice executa operações
@@ -304,7 +313,8 @@ contract ERC6551AccountNonceTest is Test {
         vm.assume(numExecutions > 0 && numExecutions <= 50); // Limitar para evitar out of gas
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 9;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         assertEq(tba.state(), 0, "state inicial deve ser 0");
@@ -330,7 +340,8 @@ contract ERC6551AccountNonceTest is Test {
     /// @notice ReentrancyGuard deve prevenir reentrância que poderia manipular state
     function test_reentrancy_guard_protects_state() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 10;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Deploy contrato malicioso que tenta reentrância

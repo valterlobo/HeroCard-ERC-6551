@@ -55,8 +55,9 @@ contract ERC6551AccountOwnershipCycleTest is Test {
 
     /// Minta um HeroCard para `to` e retorna (tokenId, tba)
     function _mintCard(address to) internal returns (uint256 tokenId, ERC6551Account tba) {
+        tokenId = 4;
         vm.prank(minter);
-        tokenId = heroCard.mint(to, "");
+        heroCard.mint(to, tokenId, "");
         tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
     }
 
@@ -146,8 +147,9 @@ contract ERC6551AccountOwnershipCycleTest is Test {
         (uint256 tokenId, ERC6551Account tba) = _mintCard(alice);
 
         // Minta um segundo HeroCard diretamente para a TBA
+        uint256 otherTokenId = 100; // Different from tokenId (1)
         vm.prank(minter);
-        uint256 otherTokenId = heroCard.mint(address(tba), "");
+        heroCard.mint(address(tba), otherTokenId, "");
         assertNotEq(otherTokenId, tokenId, "tokenIds devem ser diferentes");
 
         // A TBA transfere o OUTRO token (não o vinculado) — deve funcionar
@@ -280,8 +282,9 @@ contract ERC6551AccountOwnershipCycleTest is Test {
         (uint256 tokenId, ERC6551Account tba) = _mintCard(alice);
 
         // Minta segundo token para a TBA
+        uint256 otherTokenId = 2;
         vm.prank(minter);
-        uint256 otherTokenId = heroCard.mint(address(tba), "");
+        heroCard.mint(address(tba), otherTokenId, "");
 
         address[] memory targets = new address[](1);
         uint256[] memory values = new uint256[](1);
@@ -380,8 +383,9 @@ contract ERC6551AccountOwnershipCycleTest is Test {
     function test_cycle_approve_different_tokenId_allowed() public {
         (uint256 tokenId, ERC6551Account tba) = _mintCard(alice);
 
+        uint256 otherTokenId = 3;
         vm.prank(minter);
-        uint256 otherTokenId = heroCard.mint(alice, "");
+        heroCard.mint(alice, otherTokenId, "");
 
         bytes memory data = abi.encodeWithSelector(bytes4(keccak256("approve(address,uint256)")), bob, otherTokenId);
 

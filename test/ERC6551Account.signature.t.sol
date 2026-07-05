@@ -40,7 +40,8 @@ contract ERC6551AccountSignatureTest is Test {
         address alice = vm.addr(aliceKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Alice assina mensagem enquanto é owner
@@ -81,7 +82,8 @@ contract ERC6551AccountSignatureTest is Test {
         address bobSigner = vm.addr(bobKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 2;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         bytes32 hash = keccak256("message");
@@ -128,7 +130,8 @@ contract ERC6551AccountSignatureTest is Test {
         MockSignerContract contractOwner = new MockSignerContract();
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(address(contractOwner), "");
+        uint256 tokenId = 3;
+        heroCard.mint(address(contractOwner), tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         bytes32 hash = keccak256("test message");
@@ -150,7 +153,8 @@ contract ERC6551AccountSignatureTest is Test {
         address alice = vm.addr(aliceKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 4;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         bytes32 hash = keccak256("message");
@@ -199,7 +203,8 @@ contract ERC6551AccountSignatureTest is Test {
         address alice = vm.addr(aliceKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 5;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Alice é signer válido
@@ -225,7 +230,8 @@ contract ERC6551AccountSignatureTest is Test {
         address alice = vm.addr(aliceKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 6;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Hash zero
@@ -256,7 +262,8 @@ contract ERC6551AccountSignatureTest is Test {
         address alice = vm.addr(aliceKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 7;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Alice assina hash aleatório

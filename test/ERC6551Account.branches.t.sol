@@ -38,8 +38,9 @@ contract ERC6551AccountBranchesTest is Test {
     // ── helper ───────────────────────────────────────────────────────────────
 
     function _mintCard(address to) internal returns (uint256 tokenId, ERC6551Account tba) {
+        tokenId = 1;
         vm.prank(minter);
-        tokenId = heroCard.mint(to, "");
+        heroCard.mint(to, tokenId, "");
         tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
     }
 
@@ -77,7 +78,8 @@ contract ERC6551AccountBranchesTest is Test {
         address signer = vm.addr(privKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(signer, "");
+        uint256 tokenId = 2;
+        heroCard.mint(signer, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         bytes32 hash = keccak256("mensagem");

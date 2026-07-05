@@ -72,7 +72,8 @@ contract HeroCardTest is Test {
 
     function test_mint_success() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
 
         assertEq(heroCard.ownerOf(tokenId), alice);
         assertEq(heroCard.totalSupply(), 1);
@@ -81,14 +82,15 @@ contract HeroCardTest is Test {
     function test_mint_emits_events() public {
         vm.prank(minter);
         vm.expectEmit(true, true, false, true);
-        emit CardMinted(alice, 0);
+        emit CardMinted(alice, 1);
 
-        heroCard.mint(alice, "");
+        heroCard.mint(alice, 1, "");
     }
 
     function test_mint_creates_tba() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
 
         // TBA deve ter sido criada no mint
         assertTrue(heroCard.isAccountCreated(tokenId, heroCard.DEFAULT_SALT()));
@@ -97,23 +99,32 @@ contract HeroCardTest is Test {
     function test_mint_only_minter() public {
         vm.prank(alice);
         vm.expectRevert();
-        heroCard.mint(alice, "");
+        heroCard.mint(alice, 1, "");
     }
 
     function test_mint_with_uri() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "ipfs://QmXxx");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "ipfs://QmXxx");
         assertEq(heroCard.tokenURI(tokenId), "ipfs://QmXxx");
     }
 
     function test_mintBatch() public {
         vm.prank(minter);
-        uint256 firstId = heroCard.mintBatch(alice, 3);
+        string[] memory tokenURIs = new string[](3);
+        tokenURIs[0] = "ipfs://QmHeroCard0";
+        tokenURIs[1] = "ipfs://QmHeroCard1";
+        tokenURIs[2] = "ipfs://QmHeroCard2";
+        uint256[] memory tokensID = new uint256[](3);
+        tokensID[0] = 1;
+        tokensID[1] = 2;
+        tokensID[2] = 3;
+        heroCard.mintBatch(alice, tokensID, tokenURIs);
 
         assertEq(heroCard.totalSupply(), 3);
-        assertEq(heroCard.ownerOf(firstId), alice);
-        assertEq(heroCard.ownerOf(firstId + 1), alice);
-        assertEq(heroCard.ownerOf(firstId + 2), alice);
+        assertEq(heroCard.ownerOf(1), alice);
+        assertEq(heroCard.ownerOf(2), alice);
+        assertEq(heroCard.ownerOf(3), alice);
     }
 
     // =========================================================================
@@ -122,7 +133,8 @@ contract HeroCardTest is Test {
 
     function test_getAccount_deterministic() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
 
         address tba1 = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
         address tba2 = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
@@ -132,8 +144,10 @@ contract HeroCardTest is Test {
 
     function test_getAccount_different_tokens() public {
         vm.startPrank(minter);
-        uint256 id0 = heroCard.mint(alice, "");
-        uint256 id1 = heroCard.mint(alice, "");
+        uint256 id0 = 1;
+        heroCard.mint(alice, 1, "");
+        uint256 id1 = 2;
+        heroCard.mint(alice, 2, "");
         vm.stopPrank();
 
         address tba0 = heroCard.getAccount(id0, heroCard.DEFAULT_SALT());
@@ -144,14 +158,16 @@ contract HeroCardTest is Test {
 
     function test_isAccountCreated_true_after_mint() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
 
         assertTrue(heroCard.isAccountCreated(tokenId, heroCard.DEFAULT_SALT()));
     }
 
     function test_createAccountIfNeeded_idempotent() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
 
         address tba1 = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
@@ -163,7 +179,8 @@ contract HeroCardTest is Test {
 
     function test_tba_token_data() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
         ERC6551Account account = ERC6551Account(payable(tba));
@@ -181,7 +198,8 @@ contract HeroCardTest is Test {
 
     function test_depositEth() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         vm.prank(alice);
@@ -202,7 +220,8 @@ contract HeroCardTest is Test {
 
     function test_depositERC20() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         // Minta tokens para Alice
@@ -227,7 +246,8 @@ contract HeroCardTest is Test {
 
     function test_depositERC721() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         // Minta uma espada para Alice
@@ -268,8 +288,8 @@ contract HeroCardTest is Test {
 
     function test_account_state_increments() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
-
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
         ERC6551Account account = ERC6551Account(payable(tba));
         vm.deal(tba, 2 ether);
@@ -285,7 +305,8 @@ contract HeroCardTest is Test {
 
     function test_account_receive_eth() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         // Envia ETH direto para a TBA
@@ -297,7 +318,8 @@ contract HeroCardTest is Test {
 
     function test_account_isValidSigner_owner() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         ERC6551Account account = ERC6551Account(payable(tba));
@@ -311,7 +333,8 @@ contract HeroCardTest is Test {
 
     function test_account_supportsInterface() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         ERC6551Account account = ERC6551Account(payable(tba));
@@ -323,7 +346,8 @@ contract HeroCardTest is Test {
 
     function test_account_rejects_delegatecall() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
         ERC6551Account account = ERC6551Account(payable(tba));
 
@@ -353,7 +377,9 @@ contract HeroCardTest is Test {
         address signer = vm.addr(privKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(signer, "");
+        uint256 tokenId = 1;
+
+        heroCard.mint(signer, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
         vm.deal(tba, 5 ether);

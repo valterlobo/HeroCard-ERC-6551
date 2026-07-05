@@ -21,7 +21,7 @@ contract HeroCardSBT is HeroCardBase {
     /// @param _registry             Endereço do registry ERC-6551
     /// @param _accountImplementation Endereço da implementação ERC6551Account
     constructor(address _registry, address _accountImplementation)
-        HeroCardBase(_registry, _accountImplementation, "HeroCardSBT", "HSBT", "ipfs://QmHeroCardSBT")
+        HeroCardBase(_registry, _accountImplementation, "HeroCardSBT", "HSBT")
     {}
 
     /// @dev Sobrescreve a função de atualização de propriedade para tornar o token Soulbound (intransferível)

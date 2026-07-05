@@ -126,9 +126,13 @@ contract HeroCardBranchesTest is Test {
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
+    uint256 private mintCounter;
+
     function _mint(address to) internal returns (uint256 tokenId) {
+        mintCounter++;
+        tokenId = mintCounter + 100; // Start from 101 to avoid conflicts
         vm.prank(minter);
-        tokenId = heroCard.mint(to, "");
+        heroCard.mint(to, tokenId, "");
     }
 
     // =========================================================================
@@ -153,14 +157,20 @@ contract HeroCardBranchesTest is Test {
     // =========================================================================
     function test_mintBatch_zero_quantity_reverts() public {
         vm.prank(minter);
+        uint256[] memory emptyTokenIds = new uint256[](0);
         vm.expectRevert("HeroCard: quantidade invalida");
-        heroCard.mintBatch(alice, 0);
+        heroCard.mintBatch(alice, emptyTokenIds, new string[](0));
     }
 
     function test_mintBatch_excess_quantity_reverts() public {
+        uint256[] memory tokenIds = new uint256[](51);
+        string[] memory uris = new string[](51);
+        for (uint256 i = 0; i < 51; i++) {
+            tokenIds[i] = i + 1000;
+        }
         vm.prank(minter);
         vm.expectRevert("HeroCard: quantidade invalida");
-        heroCard.mintBatch(alice, 51);
+        heroCard.mintBatch(alice, tokenIds, uris);
     }
 
     // =========================================================================
@@ -359,14 +369,14 @@ contract HeroCardBranchesTest is Test {
         // Mint deve falhar quando pausado
         vm.prank(minter);
         vm.expectRevert();
-        heroCard.mint(alice, "");
+        uint256 tokenId3 = 3;
+        heroCard.mint(alice, tokenId3, "");
 
         // Unpause e minta novamente
         vm.prank(owner);
         heroCard.unpause();
 
-        vm.prank(minter);
-        uint256 tokenId2 = heroCard.mint(alice, "");
+        uint256 tokenId2 = _mint(alice);
         assertTrue(tokenId2 > tokenId);
     }
 

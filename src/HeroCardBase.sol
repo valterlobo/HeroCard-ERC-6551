@@ -37,11 +37,10 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     event EthDeposited(uint256 indexed tokenId, address indexed from, uint256 amount);
     event Erc20Deposited(uint256 indexed tokenId, address indexed token, address indexed from, uint256 amount);
 
+    uint256 private totalSupplyCounter;
+
     IERC6551Registry public immutable registry;
     address public immutable accountImplementation;
-    string public baseUriPrefix;
-
-    uint256 private _nextTokenId;
     bytes32 public constant DEFAULT_SALT = bytes32(0);
 
     modifier onlyOwnerOfToken(uint256 tokenId) {
@@ -49,19 +48,14 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _;
     }
 
-    constructor(
-        address _registry,
-        address _accountImplementation,
-        string memory _name,
-        string memory _symbol,
-        string memory _baseUriPrefix
-    ) ERC721(_name, _symbol) {
+    constructor(address _registry, address _accountImplementation, string memory _name, string memory _symbol)
+        ERC721(_name, _symbol)
+    {
         require(_registry != address(0), "HeroCard: registry invalido");
         require(_accountImplementation != address(0), "HeroCard: implementation invalida");
 
         registry = IERC6551Registry(_registry);
         accountImplementation = _accountImplementation;
-        baseUriPrefix = _baseUriPrefix;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
@@ -89,27 +83,36 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         override(ERC721, ERC721Pausable)
         returns (address)
     {
-        return super._update(to, tokenId, auth);
+        address previousOwner = super._update(to, tokenId, auth);
+
+        if (previousOwner == address(0)) {
+            totalSupplyCounter++;
+        }
+        if (to == address(0)) {
+            totalSupplyCounter--;
+        }
+
+        return previousOwner;
     }
 
     function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
         return super.tokenURI(tokenId);
     }
 
-    function mint(address to, string calldata _tokenURI) external onlyRole(MINTER_ROLE) returns (uint256 tokenId) {
-        tokenId = _nextTokenId++;
-        safeMint(to, tokenId, _tokenURI);
+    function mint(address to, uint256 _tokenId, string calldata _tokenURI) external onlyRole(MINTER_ROLE) {
+        safeMint(to, _tokenId, _tokenURI);
     }
 
-    function mintBatch(address to, uint256 quantity) external onlyRole(MINTER_ROLE) returns (uint256 firstId) {
+    function mintBatch(address to, uint256[] memory tokenIds, string[] calldata _tokenURIs)
+        external
+        onlyRole(MINTER_ROLE)
+    {
+        uint256 quantity = tokenIds.length;
         require(quantity > 0 && quantity <= 50, "HeroCard: quantidade invalida");
-        firstId = _nextTokenId;
-        string memory _tokenURI;
+        require(tokenIds.length == _tokenURIs.length, "HeroCard: quantidade de tokenIds e _tokenURIs deve ser igual");
 
         for (uint256 i = 0; i < quantity; i++) {
-            uint256 tokenId = _nextTokenId++;
-            _tokenURI = string(abi.encodePacked(baseUriPrefix, Strings.toString(tokenId)));
-            safeMint(to, tokenId, _tokenURI);
+            safeMint(to, tokenIds[i], _tokenURIs[i]);
         }
     }
 
@@ -192,7 +195,6 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
         // Retorno ignorado: falhas propagadas como revert por executeWithSignature
-        // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(to, amount, "", 0, signature);
     }
 
@@ -259,7 +261,11 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     }
 
     function totalSupply() external view returns (uint256) {
-        return _nextTokenId;
+        return totalSupplyCounter;
+    }
+
+    function rescueERC20(address token, address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(to, amount);
     }
 
     function supportsInterface(bytes4 interfaceId)

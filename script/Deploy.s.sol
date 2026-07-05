@@ -74,7 +74,8 @@ contract DeployHeroCard is Script {
         // ─────────────────────────────────────────────────────────────────────
         console.log("\n=== Demo: Mintando HeroCard #0 ===");
 
-        uint256 tokenId = heroCard.mint(deployer, "ipfs://QmHeroCard0");
+        uint256 tokenId = 1;
+        heroCard.mint(deployer, tokenId, "ipfs://QmHeroCard0");
         console.log("HeroCard mintado - tokenId:", tokenId);
         console.log("  Dono:                      ", deployer);
 

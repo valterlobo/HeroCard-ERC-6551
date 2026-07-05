@@ -33,8 +33,9 @@ contract ERC6551AccountReentrancyAccessTest is Test {
         vm.stopPrank();
 
         // Mint NFT para Alice
+        tokenId = 1;
         vm.prank(minter);
-        tokenId = heroCard.mint(alice, "");
+        heroCard.mint(alice, tokenId, "");
         tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
     }
 

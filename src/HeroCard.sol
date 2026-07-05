@@ -22,6 +22,6 @@ contract HeroCard is HeroCardBase {
     /// @param _registry             Endereço do registry ERC-6551
     /// @param _accountImplementation Endereço da implementação ERC6551Account
     constructor(address _registry, address _accountImplementation)
-        HeroCardBase(_registry, _accountImplementation, "HeroCard", "HERO", "ipfs://QmHeroCard")
+        HeroCardBase(_registry, _accountImplementation, "HeroCard", "HERO")
     {}
 }

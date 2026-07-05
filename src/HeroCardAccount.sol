@@ -29,6 +29,9 @@ contract HeroCardAccount is ERC6551Account {
         uint8 operation,
         bytes calldata signature
     ) external payable nonReentrant returns (bytes memory result) {
+        (uint256 chainId,,) = token();
+        if (chainId != block.chainid) revert WrongChain(chainId, block.chainid);
+
         require(operation == 0, "ERC6551Account: operacao nao suportada");
 
         // Hash incluindo o chainId atual e o endereço da conta para evitar cross-chain replay ou cross-account replay

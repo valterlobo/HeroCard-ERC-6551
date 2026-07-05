@@ -37,7 +37,8 @@ contract ERC6551AccountDelegatecallTest is Test {
     /// @dev DELEGATECALL, CREATE, CREATE2 devem ser rejeitados
     function test_only_call_operation_accepted() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         vm.deal(address(tba), 1 ether);
@@ -71,7 +72,8 @@ contract ERC6551AccountDelegatecallTest is Test {
     /// @dev State deve permanecer inalterado após revert
     function test_delegatecall_attempt_does_not_corrupt_storage() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 2;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         uint256 stateBefore = tba.state();
@@ -105,7 +107,8 @@ contract ERC6551AccountDelegatecallTest is Test {
     /// @dev Storage da TBA permanece isolado
     function test_call_cannot_affect_tba_storage() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 3;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         uint256 tbaStateBefore = tba.state();
@@ -135,7 +138,8 @@ contract ERC6551AccountDelegatecallTest is Test {
     /// @dev TBA permanece intacta
     function test_selfdestruct_attempt_does_not_destroy_tba() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 4;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         vm.deal(address(tba), 1 ether);
@@ -171,7 +175,8 @@ contract ERC6551AccountDelegatecallTest is Test {
     /// @dev State não deve mudar se operation é inválida
     function test_operation_validation_before_state_change() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 5;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         uint256 stateBefore = tba.state();
@@ -200,7 +205,8 @@ contract ERC6551AccountDelegatecallTest is Test {
     /// @dev Atacante não autorizado não pode sequer tentar delegatecall
     function test_authorization_checked_before_operation() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 6;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Bob (não owner) tenta delegatecall
@@ -223,7 +229,8 @@ contract ERC6551AccountDelegatecallTest is Test {
         vm.assume(operation != 0);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 7;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         vm.prank(alice);
@@ -240,7 +247,8 @@ contract ERC6551AccountDelegatecallTest is Test {
         vm.assume(value > 0 && value <= 0.5 ether);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 8;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         vm.deal(address(tba), 1 ether);
@@ -266,7 +274,8 @@ contract ERC6551AccountDelegatecallTest is Test {
     /// @notice Múltiplas tentativas de operações inválidas não afetam TBA
     function test_multiple_invalid_operations_do_not_affect_tba() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 9;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         uint256 stateBefore = tba.state();

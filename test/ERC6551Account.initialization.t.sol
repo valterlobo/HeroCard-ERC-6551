@@ -40,8 +40,9 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Verifica que não existe função initialize() no contrato
     /// @dev Tenta chamar initialize() via low-level call - deve falhar
     function test_no_initialize_function() public {
+        uint256 tokenId = 1;
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        heroCard.mint(alice, tokenId, "");
         address tbaAddress = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         // Tenta chamar initialize(address) - função não existe
@@ -57,7 +58,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Testa variações de funções de inicialização comuns
     function test_no_common_init_functions() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         address tbaAddress = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         // Lista de funções de inicialização comuns
@@ -84,7 +86,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Verifica que dados imutáveis permanecem constantes
     function test_immutable_data_cannot_change() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 2;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Lê dados iniciais
@@ -115,7 +118,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Tenta sobrescrever dados via execute() malicioso
     function test_cannot_overwrite_via_execute() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 3;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Lê dados iniciais
@@ -149,7 +153,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Verifica que atacante não ganha controle por frontrunning
     function test_frontrun_createAccount_is_harmless() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 4;
+        heroCard.mint(alice, tokenId, "");
 
         address expectedTBA = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
@@ -180,7 +185,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Verifica que criar TBA múltiplas vezes é idempotente
     function test_createAccount_is_idempotent() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 5;
+        heroCard.mint(alice, tokenId, "");
 
         // Cria TBA primeira vez
         address tba1 = heroCard.createAccountIfNeeded(tokenId, heroCard.DEFAULT_SALT());
@@ -208,7 +214,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Verifica que bytecode da TBA nunca muda
     function test_bytecode_is_immutable() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 6;
+        heroCard.mint(alice, tokenId, "");
         address tbaAddress = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         // Lê bytecode inicial
@@ -247,7 +254,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Verifica estrutura do bytecode deployado
     function test_bytecode_structure() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 7;
+        heroCard.mint(alice, tokenId, "");
         address tbaAddress = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         bytes memory bytecode = tbaAddress.code;
@@ -271,7 +279,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Verifica que owner NÃO está hardcoded (é dinâmico via ownerOf)
     function test_owner_is_dynamic_not_hardcoded() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 8;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Alice é owner inicial
@@ -311,8 +320,9 @@ contract ERC6551AccountInitializationTest is Test {
         for (uint256 i = 0; i < numTokens; i++) {
             owners[i] = makeAddr(string(abi.encodePacked("owner", i)));
 
+            tokenIds[i] = 1000 + i;
             vm.prank(minter);
-            tokenIds[i] = heroCard.mint(owners[i], "");
+            heroCard.mint(owners[i], tokenIds[i], "");
             tbas[i] = heroCard.getAccount(tokenIds[i], heroCard.DEFAULT_SALT());
         }
 
@@ -348,12 +358,14 @@ contract ERC6551AccountInitializationTest is Test {
 
         // Token 1
         vm.prank(minter);
-        uint256 tokenId1 = heroCard.mint(alice, "");
+        uint256 tokenId1 = 9;
+        heroCard.mint(alice, tokenId1, "");
         address tba1 = heroCard.getAccount(tokenId1, salt);
 
         // Token 2
         vm.prank(minter);
-        uint256 tokenId2 = heroCard.mint(bob, "");
+        uint256 tokenId2 = 10;
+        heroCard.mint(bob, tokenId2, "");
         address tba2 = heroCard.getAccount(tokenId2, salt);
 
         // ✅ Mesmo salt, mas endereços DIFERENTES (porque tokenId diferente)
@@ -370,7 +382,8 @@ contract ERC6551AccountInitializationTest is Test {
     /// @notice Fuzz test: salt arbitrário não permite controle malicioso
     function testFuzz_arbitrary_salt_no_malicious_control(bytes32 salt) public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 11;
+        heroCard.mint(alice, tokenId, "");
 
         // Atacante cria TBA com salt arbitrário
         vm.prank(attacker);

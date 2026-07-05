@@ -65,7 +65,8 @@ contract ERC6551AccountTransferRisksTest is Test {
     function test_INFO_tba_state_persists_after_transfer() public {
         // Setup
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 1;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
         vm.deal(address(tba), 10 ether);
 
@@ -121,7 +122,8 @@ contract ERC6551AccountTransferRisksTest is Test {
         vm.assume(numTransfers > 0 && numTransfers <= 10);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 2;
+        heroCard.mint(alice, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
         vm.deal(address(tba), 100 ether);
 

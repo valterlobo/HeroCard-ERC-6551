@@ -69,8 +69,9 @@ contract ERC6551AccountTest is Test {
     // ── helpers ───────────────────────────────────────────────────────────────
     /// Minta um HeroCard para `to` e devolve (tokenId, tba)
     function _mintCard(address to) internal returns (uint256 tokenId, ERC6551Account tba) {
+        tokenId = 4;
         vm.prank(minter);
-        tokenId = heroCard.mint(to, "");
+        heroCard.mint(to, tokenId, "");
         tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
     }
 
@@ -132,7 +133,8 @@ contract ERC6551AccountTest is Test {
 
         // Minta para o signer (para que ele seja owner)
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(signer, "");
+        uint256 tokenId = 1;
+        heroCard.mint(signer, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         // Criar hash e assinar com a chave privada do owner
@@ -155,7 +157,8 @@ contract ERC6551AccountTest is Test {
         address signer = vm.addr(privKey);
 
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(signer, "");
+        uint256 tokenId = 2;
+        heroCard.mint(signer, tokenId, "");
         ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT())));
 
         bytes32 hash = keccak256("mensagem de teste");
@@ -208,7 +211,8 @@ contract ERC6551AccountTest is Test {
 
     function test_account_owner_different_chain() public {
         vm.prank(minter);
-        uint256 tokenId = heroCard.mint(alice, "");
+        uint256 tokenId = 3;
+        heroCard.mint(alice, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
         ERC6551Account account = ERC6551Account(payable(tba));

@@ -30,7 +30,8 @@ contract HeroCardSBTTest is Test {
 
     function test_sbt_mint() public {
         vm.prank(minter);
-        uint256 tokenId = sbt.mint(alice, "");
+        uint256 tokenId = 1;
+        sbt.mint(alice, tokenId, "");
 
         assertEq(sbt.ownerOf(tokenId), alice);
         assertEq(sbt.totalSupply(), 1);
@@ -38,23 +39,31 @@ contract HeroCardSBTTest is Test {
 
     function test_sbt_uri() public {
         vm.prank(minter);
-        uint256 tokenId = sbt.mint(alice, "ipfs://custom_uri");
+        uint256 tokenId = 1;
+        sbt.mint(alice, tokenId, "ipfs://custom_uri");
         // tokenURI will return whatever was passed during minting, and the baseURI handles the rest if empty
         assertEq(sbt.tokenURI(tokenId), "ipfs://custom_uri");
     }
 
     function test_sbt_batch_mint_uri() public {
         vm.prank(minter);
-        uint256 firstId = sbt.mintBatch(alice, 2);
+        string[] memory tokenURIs = new string[](2);
+        tokenURIs[0] = "ipfs://QmHeroCardSBT0";
+        tokenURIs[1] = "ipfs://QmHeroCardSBT1";
+        uint256[] memory tokenIds = new uint256[](2);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        sbt.mintBatch(alice, tokenIds, tokenURIs);
 
-        assertEq(sbt.ownerOf(firstId), alice);
-        assertEq(sbt.tokenURI(firstId), "ipfs://QmHeroCardSBT0");
-        assertEq(sbt.tokenURI(firstId + 1), "ipfs://QmHeroCardSBT1");
+        assertEq(sbt.ownerOf(1), alice);
+        assertEq(sbt.tokenURI(1), "ipfs://QmHeroCardSBT0");
+        assertEq(sbt.tokenURI(2), "ipfs://QmHeroCardSBT1");
     }
 
     function test_sbt_transfer_reverts() public {
         vm.prank(minter);
-        uint256 tokenId = sbt.mint(alice, "");
+        uint256 tokenId = 1;
+        sbt.mint(alice, tokenId, "");
 
         vm.prank(alice);
         vm.expectRevert("HeroCardSBT: Transferencia nao permitida (Soulbound)");

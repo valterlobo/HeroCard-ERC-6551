@@ -384,7 +384,10 @@ contract ERC6551Account is
                 ++i;
             }
         }
-        require(totalRequired <= address(this).balance + msg.value, "ERC6551Account: saldo ETH insuficiente");
+
+        // Calcular saldo ANTES de receber msg.value
+        uint256 balanceBefore = address(this).balance - msg.value;
+        require(totalRequired <= balanceBefore + msg.value, "ERC6551Account: saldo ETH insuficiente");
 
         results = new bytes[](length);
 
