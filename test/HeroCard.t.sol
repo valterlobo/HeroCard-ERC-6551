@@ -480,4 +480,60 @@ contract HeroCardTest is Test {
         vm.expectRevert();
         heroCard.setAllowedTarget(bob, true);
     }
+
+    function test_withdrawEth_with_allowlist_enforced_reverts_if_not_allowed() public {
+        uint256 privKey = 0xA11CE;
+        address signer = vm.addr(privKey);
+
+        vm.prank(minter);
+        uint256 tokenId = 2;
+        heroCard.mint(signer, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        vm.deal(tba, 5 ether);
+
+        vm.prank(owner);
+        heroCard.setEnforceAllowlist(true);
+
+        uint256 amount = 1 ether;
+        uint256 state = IERC6551Account(payable(tba)).state();
+
+        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, amount, keccak256(""), 0, state));
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.prank(address(0x123));
+        vm.expectRevert("HeroCard: destino nao permitido");
+        heroCard.withdrawEth(tokenId, bob, amount, signature);
+    }
+
+    function test_withdrawERC20_with_allowlist_enforced_reverts_if_not_allowed() public {
+        uint256 privKey = 0xA11CE;
+        address signer = vm.addr(privKey);
+
+        vm.prank(minter);
+        uint256 tokenId = 3;
+        heroCard.mint(signer, tokenId, "");
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+        vm.prank(owner);
+        gold.mint(tba, 1000e18);
+
+        vm.prank(owner);
+        heroCard.setEnforceAllowlist(true);
+
+        uint256 amount = 100e18;
+        bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, bob, amount);
+        uint256 state = IERC6551Account(payable(tba)).state();
+
+        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, address(gold), 0, keccak256(data), 0, state));
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.prank(address(0x123));
+        vm.expectRevert("HeroCard: destino nao permitido");
+        heroCard.withdrawERC20(tokenId, address(gold), bob, amount, signature);
+    }
 }

@@ -53,6 +53,13 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _;
     }
 
+    modifier checkAllowlist(address to) {
+        if (enforceAllowlist) {
+            require(allowedTargets[to], "HeroCard: destino nao permitido");
+        }
+        _;
+    }
+
     constructor(address _registry, address _accountImplementation, string memory _name, string memory _symbol)
         ERC721(_name, _symbol)
     {
@@ -209,19 +216,19 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         bytes calldata data,
         uint8 operation,
         bytes calldata signature
-    ) external payable nonReentrant returns (bytes memory) {
+    ) external payable nonReentrant checkAllowlist(to) returns (bytes memory) {
         _requireOwned(tokenId);
-
-        if (enforceAllowlist) {
-            require(allowedTargets[to], "HeroCard: destino nao permitido");
-        }
 
         address tba = getAccount(tokenId, DEFAULT_SALT);
 
         return IHeroCardAccount(tba).executeWithSignature{value: msg.value}(to, value, data, operation, signature);
     }
 
-    function withdrawEth(uint256 tokenId, address to, uint256 amount, bytes calldata signature) external nonReentrant {
+    function withdrawEth(uint256 tokenId, address to, uint256 amount, bytes calldata signature)
+        external
+        nonReentrant
+        checkAllowlist(to)
+    {
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
         // Retorno ignorado: falhas propagadas como revert por executeWithSignature
@@ -231,6 +238,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     function withdrawERC20(uint256 tokenId, address token, address to, uint256 amount, bytes calldata signature)
         external
         nonReentrant
+        checkAllowlist(to)
     {
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
@@ -242,6 +250,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     function withdrawERC721(uint256 tokenId, address token, address to, uint256 nftTokenId, bytes calldata signature)
         external
         nonReentrant
+        checkAllowlist(to)
     {
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
@@ -259,7 +268,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         uint256 amount,
         bytes calldata data,
         bytes calldata signature
-    ) external nonReentrant {
+    ) external nonReentrant checkAllowlist(to) {
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory callData =
@@ -316,16 +325,6 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     function _createTbaWithSalt(uint256 tokenId, bytes32 salt) internal returns (address tba) {
         tba = registry.createAccount(accountImplementation, salt, block.chainid, address(this), tokenId);
         emit TbaCreated(tokenId, tba);
-    }
-
-    /// @notice Retorna o endereço da TBA existente, criando-a se necessário.
-    /// @dev Usado internamente apenas em contextos onde a criação é autorizada
-    ///      (ex: durante o mint). Funções de depósito devem usar _getExistingTba.
-    function _getOrCreateTba(uint256 tokenId) internal returns (address tba) {
-        tba = getAccount(tokenId, DEFAULT_SALT);
-        if (tba.code.length == 0) {
-            tba = _createTba(tokenId);
-        }
     }
 
     /// @notice Retorna o endereço da TBA existente ou reverte se não foi criada.

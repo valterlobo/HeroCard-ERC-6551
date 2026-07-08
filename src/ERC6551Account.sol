@@ -141,11 +141,13 @@ contract ERC6551Account is
     //   [77..108] chainId                            32 bytes  -> 0x20 + 77  = 0x6d
     //   [109..140] tokenContract (padded to 32)      32 bytes  -> 0x20 + 109 = 0x8d
     //   [141..172] tokenId                           32 bytes  -> 0x20 + 141 = 0xad
+    //
+    // Offsets históricos (quando usando address(this).code):
+    // _OFFSET_SALT = 0x4d; // 0x20 + 45
+    // _OFFSET_CHAIN_ID = 0x6d; // 0x20 + 77
+    // _OFFSET_TOKEN_CONTRACT = 0x8d; // 0x20 + 109
+    // _OFFSET_TOKEN_ID = 0xad; // 0x20 + 141
     // =========================================================================
-    uint256 private constant _OFFSET_SALT = 0x4d; // 0x20 + 45
-    uint256 private constant _OFFSET_CHAIN_ID = 0x6d; // 0x20 + 77
-    uint256 private constant _OFFSET_TOKEN_CONTRACT = 0x8d; // 0x20 + 109
-    uint256 private constant _OFFSET_TOKEN_ID = 0xad; // 0x20 + 141
 
     // =========================================================================
     // Storage
