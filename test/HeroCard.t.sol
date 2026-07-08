@@ -405,4 +405,79 @@ contract HeroCardTest is Test {
         assertEq(bob.balance, bobBalanceBefore + value);
         assertEq(IERC6551Account(payable(tba)).state(), state + 1);
     }
+
+    function test_executeOnAccount_with_allowlist_enforced_reverts_if_not_allowed() public {
+        uint256 privKey = 0xA11CE;
+        address signer = vm.addr(privKey);
+
+        vm.prank(minter);
+        uint256 tokenId = 1;
+        heroCard.mint(signer, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        vm.deal(tba, 5 ether);
+
+        // Habilita allowlist
+        vm.prank(owner);
+        heroCard.setEnforceAllowlist(true);
+
+        uint256 value = 1 ether;
+        bytes memory data = "";
+        uint8 operation = 0;
+        uint256 state = IERC6551Account(payable(tba)).state();
+
+        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, value, keccak256(data), operation, state));
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // Executa com bob não permitido - deve falhar
+        vm.prank(address(0x123));
+        vm.expectRevert("HeroCard: destino nao permitido");
+        heroCard.executeOnAccount(tokenId, bob, value, data, operation, signature);
+    }
+
+    function test_executeOnAccount_with_allowlist_enforced_succeeds_if_allowed() public {
+        uint256 privKey = 0xA11CE;
+        address signer = vm.addr(privKey);
+
+        vm.prank(minter);
+        uint256 tokenId = 1;
+        heroCard.mint(signer, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        vm.deal(tba, 5 ether);
+
+        // Habilita allowlist e permite bob
+        vm.startPrank(owner);
+        heroCard.setEnforceAllowlist(true);
+        heroCard.setAllowedTarget(bob, true);
+        vm.stopPrank();
+
+        uint256 bobBalanceBefore = bob.balance;
+        uint256 value = 1 ether;
+        bytes memory data = "";
+        uint8 operation = 0;
+        uint256 state = IERC6551Account(payable(tba)).state();
+
+        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, value, keccak256(data), operation, state));
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.prank(address(0x123));
+        heroCard.executeOnAccount(tokenId, bob, value, data, operation, signature);
+
+        assertEq(bob.balance, bobBalanceBefore + value);
+    }
+
+    function test_allowlist_only_admin() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        heroCard.setEnforceAllowlist(true);
+
+        vm.prank(alice);
+        vm.expectRevert();
+        heroCard.setAllowedTarget(bob, true);
+    }
 }

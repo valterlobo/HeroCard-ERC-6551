@@ -36,12 +36,17 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     event TbaCreated(uint256 indexed tokenId, address indexed accountAddress);
     event EthDeposited(uint256 indexed tokenId, address indexed from, uint256 amount);
     event Erc20Deposited(uint256 indexed tokenId, address indexed token, address indexed from, uint256 amount);
+    event TargetAllowed(address indexed target, bool allowed);
+    event AllowlistEnforced(bool enforced);
 
     uint256 private totalSupplyCounter;
 
     IERC6551Registry public immutable registry;
     address public immutable accountImplementation;
     bytes32 public constant DEFAULT_SALT = bytes32(0);
+
+    bool public enforceAllowlist;
+    mapping(address => bool) public allowedTargets;
 
     modifier onlyOwnerOfToken(uint256 tokenId) {
         require(ownerOf(tokenId) == msg.sender, "HeroCard: nao e o dono do cartao");
@@ -68,6 +73,16 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
 
     function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
+    }
+
+    function setEnforceAllowlist(bool _enforce) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        enforceAllowlist = _enforce;
+        emit AllowlistEnforced(_enforce);
+    }
+
+    function setAllowedTarget(address target, bool allowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        allowedTargets[target] = allowed;
+        emit TargetAllowed(target, allowed);
     }
 
     function safeMint(address to, uint256 tokenId, string memory uri) public onlyRole(MINTER_ROLE) nonReentrant {
@@ -196,6 +211,11 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         bytes calldata signature
     ) external payable nonReentrant returns (bytes memory) {
         _requireOwned(tokenId);
+
+        if (enforceAllowlist) {
+            require(allowedTargets[to], "HeroCard: destino nao permitido");
+        }
+
         address tba = getAccount(tokenId, DEFAULT_SALT);
 
         return IHeroCardAccount(tba).executeWithSignature{value: msg.value}(to, value, data, operation, signature);
