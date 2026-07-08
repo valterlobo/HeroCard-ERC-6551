@@ -74,24 +74,37 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _grantRole(PAUSER_ROLE, msg.sender);
     }
 
+    /// @notice Pausa transferências e outras operações sensíveis do token.
+    /// @dev Requer a role PAUSER_ROLE.
     function pause() public onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
+    /// @notice Retoma o funcionamento normal do token.
+    /// @dev Requer a role PAUSER_ROLE.
     function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
+    /// @notice Habilita ou desabilita a verificação de destinos (allowlist).
+    /// @param _enforce Booleano indicando se a lista restrita de destinos está ativa.
     function setEnforceAllowlist(bool _enforce) external onlyRole(DEFAULT_ADMIN_ROLE) {
         enforceAllowlist = _enforce;
         emit AllowlistEnforced(_enforce);
     }
 
+    /// @notice Adiciona ou remove um destino autorizado (para withdraws e executeOnAccount).
+    /// @param target O endereço alvo.
+    /// @param allowed True para permitir, false para revogar acesso.
     function setAllowedTarget(address target, bool allowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
         allowedTargets[target] = allowed;
         emit TargetAllowed(target, allowed);
     }
 
+    /// @notice Cria um novo token e vincula automaticamente uma TBA a ele.
+    /// @param to Destinatário do novo token.
+    /// @param tokenId O ID do token a ser criado.
+    /// @param uri Metadados (URI) do token.
     function safeMint(address to, uint256 tokenId, string memory uri) public onlyRole(MINTER_ROLE) nonReentrant {
         _safeMint(to, tokenId);
         _createTba(tokenId);
@@ -121,10 +134,18 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         return super.tokenURI(tokenId);
     }
 
+    /// @notice Atalho para criar um único token (chama safeMint internamente).
+    /// @param to Destinatário do novo token.
+    /// @param _tokenId O ID numérico do token.
+    /// @param _tokenURI O metadado URI apontando para as propriedades do NFT.
     function mint(address to, uint256 _tokenId, string calldata _tokenURI) external onlyRole(MINTER_ROLE) {
         safeMint(to, _tokenId, _tokenURI);
     }
 
+    /// @notice Cria diversos tokens para o mesmo destinatário em lote.
+    /// @param to O destinatário dos tokens.
+    /// @param tokenIds Lista com os IDs que serão criados.
+    /// @param _tokenURIs Lista contendo a respectiva URI para cada tokenID.
     function mintBatch(address to, uint256[] memory tokenIds, string[] calldata _tokenURIs)
         external
         onlyRole(MINTER_ROLE)
@@ -138,15 +159,25 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         }
     }
 
+    /// @notice Retorna o endereço determinístico (ERC-6551) da TBA associada.
+    /// @param tokenId ID do token alvo.
+    /// @param salt Seed adicional para o address proxy (geralmente bytes32(0)).
     function getAccount(uint256 tokenId, bytes32 salt) public view returns (address) {
         return registry.account(accountImplementation, salt, block.chainid, address(this), tokenId);
     }
 
+    /// @notice Confirma se o contrato proxy da conta já foi implantado no endereço estipulado.
+    /// @param tokenId O ID do HeroCard associado.
+    /// @param salt Salt com a qual a conta seria implantada.
     function isAccountCreated(uint256 tokenId, bytes32 salt) public view returns (bool) {
         address tba = getAccount(tokenId, salt);
         return tba.code.length > 0;
     }
 
+    /// @notice Garante a implantação da conta TBA. Pode ser chamada se a conta falhou ao ser criada no mint inicial (fallback).
+    /// @param tokenId ID numérico. O sender deve possuir o NFT para chamar esta função.
+    /// @param salt Salt utilizada, que deve seguir o que se deseja.
+    /// @return account O endereço do contrato TBA originado.
     function createAccountIfNeeded(uint256 tokenId, bytes32 salt) external returns (address account) {
         _requireOwned(tokenId);
 
@@ -209,6 +240,14 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     // Meta-Transactions (Wrapper)
     // =========================================================================
 
+    /// @notice Executa uma chamada genérica na TBA do token usando assinatura.
+    /// @param tokenId ID do HeroCard dono da TBA.
+    /// @param to Endereço de destino da chamada.
+    /// @param value Valor em wei a ser enviado.
+    /// @param data Payload da chamada.
+    /// @param operation Tipo da operação (0 = CALL).
+    /// @param signature Assinatura digital válida do owner atual do NFT.
+    /// @return Retorno da chamada.
     function executeOnAccount(
         uint256 tokenId,
         address to,
@@ -224,6 +263,11 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         return IHeroCardAccount(tba).executeWithSignature{value: msg.value}(to, value, data, operation, signature);
     }
 
+    /// @notice Saca ETH nativamente da TBA.
+    /// @param tokenId ID do cartão de origem.
+    /// @param to Recebedor do ETH sendo retirado.
+    /// @param amount Quantidade em WEI de ETH sendo extraída.
+    /// @param signature Assinatura criptográfica que atesta e autoriza a operação.
     function withdrawEth(uint256 tokenId, address to, uint256 amount, bytes calldata signature)
         external
         nonReentrant
@@ -235,6 +279,12 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         IHeroCardAccount(tba).executeWithSignature(to, amount, "", 0, signature);
     }
 
+    /// @notice Saca tokens ERC-20 da TBA para a conta designada.
+    /// @param tokenId ID numérico do NFT.
+    /// @param token Contrato do ERC-20.
+    /// @param to Conta recebedora dos ativos transferidos da TBA.
+    /// @param amount Quantidade repassada.
+    /// @param signature Assinatura do autorizador/dono.
     function withdrawERC20(uint256 tokenId, address token, address to, uint256 amount, bytes calldata signature)
         external
         nonReentrant
@@ -247,6 +297,12 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
+    /// @notice Executa safeTransferFrom de um ERC-721 pertencente à TBA.
+    /// @param tokenId ID numérico principal (HeroCard).
+    /// @param token Contrato do ERC-721 que está na TBA.
+    /// @param to Destinatário do ativo.
+    /// @param nftTokenId ID do ERC-721 sendo retirado.
+    /// @param signature Assinatura validadora.
     function withdrawERC721(uint256 tokenId, address token, address to, uint256 nftTokenId, bytes calldata signature)
         external
         nonReentrant
@@ -260,6 +316,14 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
+    /// @notice Executa safeTransferFrom de ERC-1155 pertencente à TBA.
+    /// @param tokenId O ID referente ao HeroCard principal.
+    /// @param token Endereço do ativo ERC-1155 a ser sacado.
+    /// @param to Destinatário final.
+    /// @param assetTokenId O id correspondente ao ativo ERC-1155.
+    /// @param amount O valor (quantidade) extraído.
+    /// @param data Contexto adicional exigido pela função safeTransferFrom.
+    /// @param signature A assinatura validadora (owner do HeroCard).
     function withdrawERC1155(
         uint256 tokenId,
         address token,
@@ -277,6 +341,11 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         IHeroCardAccount(tba).executeWithSignature(token, 0, callData, 0, signature);
     }
 
+    /// @notice Interrompe aprovações (approve) de ERC-20 dadas pela TBA para um dado spender (zera a permissão).
+    /// @param tokenId ID responsável (HeroCard).
+    /// @param token O contrato do token ERC-20.
+    /// @param spender O endereço cujo allowance será definido para zero.
+    /// @param signature Assinatura do owner autorizando.
     function revokeERC20Approvals(uint256 tokenId, address token, address spender, bytes calldata signature)
         external
         nonReentrant
@@ -288,6 +357,11 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
+    /// @notice Interrompe a autoridade fornecida por setApprovalForAll (ERC-721/1155) pela TBA a um dado operator.
+    /// @param tokenId ID do HeroCard correspondente.
+    /// @param token Contrato cujas aprovações serão interrompidas.
+    /// @param operator A conta que perderá os direitos.
+    /// @param signature Assinatura do owner autorizando.
     function revokeERC721Operators(uint256 tokenId, address token, address operator, bytes calldata signature)
         external
         nonReentrant
@@ -299,10 +373,17 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
     }
 
+    /// @notice Retorna a contagem atual de HeroCards emitidos que não foram queimados.
+    /// @return O totalSupply vigente (quantidade de cartões válidos em circulação).
     function totalSupply() external view returns (uint256) {
         return totalSupplyCounter;
     }
 
+    /// @notice Recupera tokens ERC-20 transferidos por engano diretamente para este contrato base (não para uma TBA).
+    /// @dev Apenas DEFAULT_ADMIN_ROLE pode utilizar e resgatar.
+    /// @param token Endereço do contrato do token que foi enviado por erro.
+    /// @param to Destino de recuperação.
+    /// @param amount Quantia a ser resgatada.
     function rescueERC20(address token, address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         IERC20(token).safeTransfer(to, amount);
     }

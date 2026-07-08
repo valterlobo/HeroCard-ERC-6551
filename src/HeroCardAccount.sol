@@ -6,13 +6,11 @@ import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 /// @title HeroCardAccount
 /// @notice Subclasse de ERC6551Account específica para HeroCard.
-/// @dev Adiciona o contrato do token como signer válido para permitir
-///      a delegação de chamadas (ex: withdrawEth, executeOnAccount)
-///      a partir do próprio contrato HeroCard.
+/// @dev Extensão de `ERC6551Account` que implementa a função de 
+///      meta-transações (executeWithSignature). Aderimos à especificação 
+///      ERC-6551 de isolamento mantendo estritamente a validação de assinatura
+///      através de EIP-1271 com o owner verdadeiro.
 contract HeroCardAccount is ERC6551Account {
-    // A verificação signer == tokenContract foi removida para
-    // aderir estritamente à especificação ERC-6551 e evitar
-    // a quebra do princípio de isolamento da TBA.
 
     /// @notice Executa uma chamada usando uma assinatura digital do proprietário atual
     /// @dev Permite meta-transactions encaminhadas pelo HeroCardBase ou outros relayers
