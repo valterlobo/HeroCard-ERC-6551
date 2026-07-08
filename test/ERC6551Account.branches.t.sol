@@ -417,6 +417,68 @@ contract ERC6551AccountBranchesTest is Test {
         tba.executeBatch(targets, values, data, 0);
     }
 
+    /// @notice Reproduz cenário de ataque do relatório de auditoria:
+    ///         TBA com 1 ETH, atacante chama executeBatch com msg.value=1 ETH
+    ///         e values totalizando 3 ETH. Deve reverter porque o saldo total
+    ///         disponível é apenas 2 ETH (1 existente + 1 enviado).
+    function test_executeBatch_msgvalue_double_count_attack() public {
+        (, ERC6551Account tba) = _mintCard(alice);
+
+        // TBA tem 1 ETH de saldo pré-existente
+        vm.deal(address(tba), 1 ether);
+
+        address[] memory targets = new address[](2);
+        uint256[] memory values = new uint256[](2);
+        bytes[] memory data = new bytes[](2);
+
+        // Atacante tenta drenar 3 ETH total
+        targets[0] = bob;
+        values[0] = 2 ether;
+        data[0] = "";
+
+        targets[1] = bob;
+        values[1] = 1 ether;
+        data[1] = "";
+
+        // totalRequired = 3 ETH
+        // address(this).balance = 1 (existente) + 1 (msg.value) = 2 ETH
+        // 3 <= 2 → FALSO → deve reverter
+        vm.prank(alice);
+        vm.expectRevert("ERC6551Account: saldo ETH insuficiente");
+        tba.executeBatch{value: 1 ether}(targets, values, data, 0);
+    }
+
+    /// @notice Garante que msg.value é corretamente contabilizado quando suficiente
+    function test_executeBatch_with_msgvalue_success() public {
+        (, ERC6551Account tba) = _mintCard(alice);
+
+        // TBA tem 1 ETH de saldo pré-existente
+        vm.deal(address(tba), 1 ether);
+
+        address[] memory targets = new address[](2);
+        uint256[] memory values = new uint256[](2);
+        bytes[] memory data = new bytes[](2);
+
+        // Total = 2 ETH = 1 (existente) + 1 (msg.value) → exatamente suficiente
+        targets[0] = bob;
+        values[0] = 1.5 ether;
+        data[0] = "";
+
+        targets[1] = carol;
+        values[1] = 0.5 ether;
+        data[1] = "";
+
+        uint256 bobBefore = bob.balance;
+        uint256 carolBefore = carol.balance;
+
+        vm.prank(alice);
+        tba.executeBatch{value: 1 ether}(targets, values, data, 0);
+
+        assertEq(bob.balance, bobBefore + 1.5 ether, "bob deve ter recebido 1.5 ether");
+        assertEq(carol.balance, carolBefore + 0.5 ether, "carol deve ter recebido 0.5 ether");
+        assertEq(address(tba).balance, 0, "TBA deve ter saldo zero");
+    }
+
     // =========================================================================
     // executeBatch() — fuzz: qualquer operation != 0 rejeitada
     // =========================================================================

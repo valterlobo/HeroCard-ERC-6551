@@ -346,8 +346,9 @@ contract ERC6551Account is
     ///      O state é incrementado ANTES das chamadas externas (CEI pattern).
     ///      Se qualquer chamada falhar, toda a transação é revertida (atomicidade).
     ///      Os arrays `targets`, `values` e `data` devem ter o mesmo comprimento.
-    ///      A soma de todos os `values[i]` é validada contra `msg.value + saldo`
-    ///      ANTES de qualquer execução, prevenindo drenagem de ETH custodiado.
+    ///      A soma de todos os `values[i]` é validada contra `address(this).balance`
+    ///      (que já inclui `msg.value`) ANTES de qualquer execução, prevenindo
+    ///      drenagem de ETH custodiado.
     ///
     /// @param targets   Array de endereços de destino
     /// @param values    Array de valores ETH em wei a enviar por chamada
@@ -375,8 +376,13 @@ contract ERC6551Account is
 
         // ── Validação de saldo ETH ─────────────────────────────────────────
         // Calcula o total de ETH requerido e valida contra o saldo disponível
-        // (saldo existente + msg.value) ANTES de qualquer execução.
+        // ANTES de qualquer execução.
         // Previne drenagem: owner malicioso não pode especificar values > saldo.
+        //
+        // NOTA: No momento desta verificação, address(this).balance JÁ INCLUI
+        // msg.value (o ETH é creditado ao contrato antes da execução do corpo
+        // da função). Portanto, address(this).balance representa o saldo TOTAL
+        // disponível (saldo pré-existente + msg.value enviado nesta chamada).
         uint256 totalRequired;
         for (uint256 i = 0; i < length;) {
             totalRequired += values[i]; // overflow revert nativo do Solidity 0.8+
@@ -385,9 +391,7 @@ contract ERC6551Account is
             }
         }
 
-        // Calcular saldo ANTES de receber msg.value
-        uint256 balanceBefore = address(this).balance - msg.value;
-        require(totalRequired <= balanceBefore + msg.value, "ERC6551Account: saldo ETH insuficiente");
+        require(totalRequired <= address(this).balance, "ERC6551Account: saldo ETH insuficiente");
 
         results = new bytes[](length);
 

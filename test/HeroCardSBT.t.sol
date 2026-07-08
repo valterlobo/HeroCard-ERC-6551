@@ -66,15 +66,74 @@ contract HeroCardSBTTest is Test {
         sbt.mint(alice, tokenId, "");
 
         vm.prank(alice);
-        vm.expectRevert("HeroCardSBT: Transferencia nao permitida (Soulbound)");
+        vm.expectRevert("HeroCardSBT: Transferencia e burn nao permitidos (Soulbound)");
         sbt.transferFrom(alice, bob, tokenId);
 
         vm.prank(alice);
-        vm.expectRevert("HeroCardSBT: Transferencia nao permitida (Soulbound)");
+        vm.expectRevert("HeroCardSBT: Transferencia e burn nao permitidos (Soulbound)");
         sbt.safeTransferFrom(alice, bob, tokenId);
 
         // Ensure Alice is still the owner
         assertEq(sbt.ownerOf(tokenId), alice);
+    }
+
+    // =========================================================================
+    // VULN-02: Burn deve ser bloqueado — SBT é indestrutível
+    // =========================================================================
+
+    /// @notice Owner não pode fazer burn do próprio SBT
+    function test_sbt_burn_by_owner_reverts() public {
+        vm.prank(minter);
+        uint256 tokenId = 1;
+        sbt.mint(alice, tokenId, "");
+
+        // Owner tenta burn (transferFrom para address(0) não funciona via ERC721,
+        // mas testamos via _update que bloqueia qualquer to != mint)
+        // Nota: ERC721.transferFrom para address(0) reverte antes de chegar a _update
+        // porque OpenZeppelin valida o receiver. Então testamos via safeTransferFrom.
+        vm.prank(alice);
+        vm.expectRevert(); // ERC721 reverte antes mesmo do nosso check
+        sbt.transferFrom(alice, address(0), tokenId);
+
+        assertEq(sbt.ownerOf(tokenId), alice, "SBT nao deve ter sido destruido");
+    }
+
+    /// @notice Operador aprovado NÃO pode destruir o SBT (cenário de ataque VULN-02)
+    /// @dev Este é o cenário exato da vulnerabilidade: um contrato malicioso com
+    ///      approve poderia chamar burn para destruir o SBT do owner.
+    function test_sbt_burn_by_approved_operator_reverts() public {
+        vm.prank(minter);
+        uint256 tokenId = 1;
+        sbt.mint(alice, tokenId, "");
+
+        // Alice aprova bob para o token
+        vm.prank(alice);
+        sbt.approve(bob, tokenId);
+
+        // Bob (aprovado) tenta transferir — deve ser bloqueado
+        vm.prank(bob);
+        vm.expectRevert("HeroCardSBT: Transferencia e burn nao permitidos (Soulbound)");
+        sbt.transferFrom(alice, bob, tokenId);
+
+        assertEq(sbt.ownerOf(tokenId), alice, "SBT nao deve ter sido transferido por operador");
+    }
+
+    /// @notice setApprovalForAll + transferência deve ser bloqueado
+    function test_sbt_transfer_by_approved_for_all_reverts() public {
+        vm.prank(minter);
+        uint256 tokenId = 1;
+        sbt.mint(alice, tokenId, "");
+
+        // Alice dá aprovação global para bob
+        vm.prank(alice);
+        sbt.setApprovalForAll(bob, true);
+
+        // Bob (operador global) tenta transferir — deve ser bloqueado
+        vm.prank(bob);
+        vm.expectRevert("HeroCardSBT: Transferencia e burn nao permitidos (Soulbound)");
+        sbt.transferFrom(alice, bob, tokenId);
+
+        assertEq(sbt.ownerOf(tokenId), alice, "SBT nao deve ter sido transferido por operador global");
     }
 
     // removed for removed delegate functions

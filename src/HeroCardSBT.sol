@@ -11,8 +11,8 @@ import "./HeroCardBase.sol";
 ///
 ///      DIFERENÇA PARA O HEROCARD ORIGINAL:
 ///      Este contrato é um Soulbound Token (SBT), o que significa que, uma vez mintado
-///      para um endereço, ele NÃO pode ser transferido para outro. As únicas transferências
-///      permitidas são de mint (criação) e burn (destruição).
+///      para um endereço, ele NÃO pode ser transferido NEM destruído (burn).
+///      A única operação permitida é o mint (criação).
 ///
 ///      Roles:
 ///        DEFAULT_ADMIN_ROLE — administrador geral (pode conceder/revogar roles)
@@ -24,13 +24,20 @@ contract HeroCardSBT is HeroCardBase {
         HeroCardBase(_registry, _accountImplementation, "HeroCardSBT", "HSBT")
     {}
 
-    /// @dev Sobrescreve a função de atualização de propriedade para tornar o token Soulbound (intransferível)
+    /// @dev Sobrescreve a função de atualização de propriedade para tornar o token Soulbound.
+    ///      Apenas MINT (from == address(0)) é permitido. Transferências e burns são bloqueados.
+    ///
+    ///      SEGURANÇA: A versão anterior permitia burn (to == address(0)), o que criava
+    ///      uma vulnerabilidade: qualquer endereço com approve/setApprovalForAll podia
+    ///      destruir o SBT do owner. Um Soulbound Token deve ser intransferível E
+    ///      indestrutível por terceiros.
     function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
         address from = _ownerOf(tokenId);
 
-        // Se `from` não for 0 (não é mint) e `to` não for 0 (não é burn), então é uma transferência.
-        // Revertemos, pois SBTs não podem ser transferidos.
-        require(from == address(0) || to == address(0), "HeroCardSBT: Transferencia nao permitida (Soulbound)");
+        // Apenas mint é permitido — transferências e burns são bloqueados.
+        // from == address(0) indica que o token está sendo criado (mint).
+        // Qualquer outro cenário (transferência ou burn) é revertido.
+        require(from == address(0), "HeroCardSBT: Transferencia e burn nao permitidos (Soulbound)");
 
         return super._update(to, tokenId, auth);
     }

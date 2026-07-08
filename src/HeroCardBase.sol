@@ -135,11 +135,15 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         return _createTbaWithSalt(tokenId, salt);
     }
 
+    /// @notice Deposita ETH na TBA associada ao tokenId.
+    /// @dev A TBA já deve existir (criada no mint ou via createAccountIfNeeded).
+    ///      Qualquer endereço pode depositar ETH — isso é intencional para permitir
+    ///      que terceiros financiem a TBA. Porém, a criação da TBA é restrita.
     function depositEth(uint256 tokenId) external payable nonReentrant {
         _requireOwned(tokenId);
         require(msg.value > 0, "HeroCard: valor zero");
 
-        address tba = _getOrCreateTba(tokenId);
+        address tba = _getExistingTba(tokenId);
 
         emit EthDeposited(tokenId, msg.sender, msg.value);
 
@@ -147,29 +151,35 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         require(success, "HeroCard: falha ao depositar ETH");
     }
 
+    /// @notice Deposita ERC-20 na TBA associada ao tokenId.
+    /// @dev A TBA já deve existir. Requer aprovação prévia do ERC-20.
     function depositERC20(uint256 tokenId, address tokenContract, uint256 amount) external nonReentrant {
         _requireOwned(tokenId);
         require(amount > 0, "HeroCard: quantidade zero");
 
-        address tba = _getOrCreateTba(tokenId);
+        address tba = _getExistingTba(tokenId);
 
         emit Erc20Deposited(tokenId, tokenContract, msg.sender, amount);
 
         IERC20(tokenContract).safeTransferFrom(msg.sender, tba, amount);
     }
 
+    /// @notice Deposita ERC-721 na TBA associada ao tokenId.
+    /// @dev A TBA já deve existir. Requer aprovação prévia do NFT.
     function depositERC721(uint256 tokenId, address nftContract, uint256 nftTokenId) external nonReentrant {
         _requireOwned(tokenId);
-        address tba = _getOrCreateTba(tokenId);
+        address tba = _getExistingTba(tokenId);
         IERC721(nftContract).safeTransferFrom(msg.sender, tba, nftTokenId);
     }
 
+    /// @notice Deposita ERC-1155 na TBA associada ao tokenId.
+    /// @dev A TBA já deve existir. Requer aprovação prévia do token.
     function depositERC1155(uint256 tokenId, address tokenContract, uint256 assetTokenId, uint256 amount)
         external
         nonReentrant
     {
         _requireOwned(tokenId);
-        address tba = _getOrCreateTba(tokenId);
+        address tba = _getExistingTba(tokenId);
         IERC1155(tokenContract).safeTransferFrom(msg.sender, tba, assetTokenId, amount, "");
     }
 
@@ -288,10 +298,21 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         emit TbaCreated(tokenId, tba);
     }
 
+    /// @notice Retorna o endereço da TBA existente, criando-a se necessário.
+    /// @dev Usado internamente apenas em contextos onde a criação é autorizada
+    ///      (ex: durante o mint). Funções de depósito devem usar _getExistingTba.
     function _getOrCreateTba(uint256 tokenId) internal returns (address tba) {
         tba = getAccount(tokenId, DEFAULT_SALT);
         if (tba.code.length == 0) {
             tba = _createTba(tokenId);
         }
+    }
+
+    /// @notice Retorna o endereço da TBA existente ou reverte se não foi criada.
+    /// @dev Previne que terceiros forcem a criação de TBAs via funções de depósito.
+    ///      A TBA deve ter sido criada previamente via mint ou createAccountIfNeeded.
+    function _getExistingTba(uint256 tokenId) internal view returns (address tba) {
+        tba = getAccount(tokenId, DEFAULT_SALT);
+        require(tba.code.length > 0, "HeroCard: TBA nao existe");
     }
 }

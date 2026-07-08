@@ -292,34 +292,41 @@ contract HeroCardBranchesTest is Test {
     function test_withdrawERC721_result_empty_branch() public {}
 
     // =========================================================================
-    // L435 — _getOrCreateTba: tba.code.length == 0 → branch TRUE (cria TBA)
-    //         Coberto implicitamente por depositEth quando TBA não existe.
-    //         Forçamos um caso onde a TBA ainda não existe antes do depósito.
+    // VULN-03: Depósitos devem reverter quando TBA não existe
+    //          Previne que terceiros forcem a criação de TBAs via depósitos.
     // =========================================================================
-    function test_getOrCreateTba_creates_when_missing() public {
-        // Cria tokenId sem TBA usando um registry diferente
-        // Abordagem: novo HeroCard mas mesmos registry/impl → mas mint sempre cria TBA.
-        // Forçamos via vm.store: cria ownership do token sem deploy da TBA.
+    function test_depositERC20_reverts_when_tba_missing() public {
+        // Cria ownership do token sem deploy da TBA (simula token sem mint)
         uint256 fakeTokenId = 888;
         bytes32 ownerSlot = keccak256(abi.encode(fakeTokenId, uint256(2)));
         vm.store(address(heroCard), ownerSlot, bytes32(uint256(uint160(alice))));
 
         // TBA ainda não existe
         address tba = heroCard.getAccount(fakeTokenId, heroCard.DEFAULT_SALT());
-        assertEq(tba.code.length, 0, "TBA nao deve existir antes do deposito");
+        assertEq(tba.code.length, 0, "TBA nao deve existir");
 
-        // depositErc20 chama _getOrCreateTba → branch: tba.code.length == 0 → cria TBA
+        // depositERC20 deve reverter porque TBA não existe
         vm.prank(owner);
         gold.mint(alice, 1000e18);
 
         vm.startPrank(alice);
         gold.approve(address(heroCard), 100e18);
+        vm.expectRevert("HeroCard: TBA nao existe");
         heroCard.depositERC20(fakeTokenId, address(gold), 100e18);
         vm.stopPrank();
 
-        // Após deposit, TBA deve existir
-        assertGt(tba.code.length, 0, "TBA deve existir apos deposito");
-        assertEq(gold.balanceOf(tba), 100e18);
+        // TBA NÃO deve ter sido criada
+        assertEq(tba.code.length, 0, "TBA nao deve ter sido criada via deposito");
+    }
+
+    function test_depositEth_reverts_when_tba_missing() public {
+        uint256 fakeTokenId = 889;
+        bytes32 ownerSlot = keccak256(abi.encode(fakeTokenId, uint256(2)));
+        vm.store(address(heroCard), ownerSlot, bytes32(uint256(uint160(alice))));
+
+        vm.prank(alice);
+        vm.expectRevert("HeroCard: TBA nao existe");
+        heroCard.depositEth{value: 1 ether}(fakeTokenId);
     }
 
     // =========================================================================
@@ -425,9 +432,9 @@ contract HeroCardBranchesTest is Test {
     }
 
     // =========================================================================
-    // depositERC721 com TBA inexistente → _getOrCreateTba cria
+    // VULN-03: depositERC721 com TBA inexistente → deve reverter
     // =========================================================================
-    function test_depositERC721_creates_tba_if_needed() public {
+    function test_depositERC721_reverts_when_tba_missing() public {
         uint256 fakeTokenId = 666;
         bytes32 ownerSlot = keccak256(abi.encode(fakeTokenId, uint256(2)));
         vm.store(address(heroCard), ownerSlot, bytes32(uint256(uint160(alice))));
@@ -436,11 +443,9 @@ contract HeroCardBranchesTest is Test {
 
         vm.startPrank(alice);
         sword.approve(address(heroCard), swordId);
+        vm.expectRevert("HeroCard: TBA nao existe");
         heroCard.depositERC721(fakeTokenId, address(sword), swordId);
         vm.stopPrank();
-
-        address tba = heroCard.getAccount(fakeTokenId, heroCard.DEFAULT_SALT());
-        assertEq(sword.ownerOf(swordId), tba);
     }
 
     // =========================================================================
