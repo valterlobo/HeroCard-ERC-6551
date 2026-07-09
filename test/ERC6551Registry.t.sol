@@ -4,17 +4,25 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import "../src/ERC6551Registry.sol";
 import "../src/interfaces/IERC6551Registry.sol";
+import "../src/HeroCardAccount.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
+contract DummyToken is ERC721 {
+    constructor() ERC721("Dummy", "DUM") {}
+}
 
 contract ERC6551RegistryTest is Test {
     ERC6551Registry public registry;
-    address public implementation = address(0x123);
+    address public implementation;
     bytes32 public salt = bytes32(uint256(1));
     uint256 public chainId = 1;
-    address public tokenContract = address(0x456);
+    address public tokenContract;
     uint256 public tokenId = 1;
 
     function setUp() public {
         registry = new ERC6551Registry();
+        implementation = address(new HeroCardAccount());
+        tokenContract = address(new DummyToken());
     }
 
     // Branch 1: accountAddress.code.length > 0

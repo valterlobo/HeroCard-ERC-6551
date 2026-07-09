@@ -52,6 +52,25 @@ contract ERC6551Registry is IERC6551Registry {
         require(implementation != address(0), "ERC6551Registry: implementacao invalida");
         require(tokenContract != address(0), "ERC6551Registry: tokenContract invalido");
 
+        // Validação de código
+        require(
+            implementation.code.length > 0,
+            "ERC6551Registry: implementacao deve ser contrato"
+        );
+        require(
+            tokenContract.code.length > 0,
+            "ERC6551Registry: tokenContract deve ser contrato"
+        );
+
+        // Validação de interface ERC-1271 (suporte a meta-transações via ERC-165)
+        (bool success, bytes memory data) = implementation.staticcall(
+            abi.encodeWithSelector(0x01ffc9a7, bytes4(0x1626ba7e))
+        );
+        if (!success || data.length < 32) {
+            revert("ERC6551Registry: implementacao invalida");
+        }
+        require(abi.decode(data, (bool)), "ERC6551Registry: implementacao nao suporta ERC-1271");
+
         bytes memory code = _creationCode(implementation, chainId, tokenContract, tokenId, salt);
 
         accountAddress = Create2Lib.computeAddress(salt, keccak256(code));
