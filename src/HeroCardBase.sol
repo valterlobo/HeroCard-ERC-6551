@@ -239,6 +239,11 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     // =========================================================================
     // Meta-Transactions (Wrapper)
     // =========================================================================
+    // Nota de Design: A operação `executeBatch` é exposta diretamente pela TBA
+    // (Token Bound Account). Não oferecemos um wrapper `executeBatchOnAccount` aqui
+    // em HeroCardBase. Isso é uma escolha de design ("TBA-only"): chamadas em lote
+    // devem ser feitas diretamente interagindo com o contrato da TBA.
+    // =========================================================================
 
     /// @notice Executa uma chamada genérica na TBA do token usando assinatura.
     /// @param tokenId ID do HeroCard dono da TBA.
