@@ -20,6 +20,7 @@ contract HeroCardBaseCoverageTest is Test {
     address public owner = makeAddr("owner");
     address public minter = makeAddr("minter");
     address public bob = makeAddr("bob");
+    address public carol = makeAddr("carol");
 
     // Alice com private key conhecida para assinaturas
     uint256 public alicePrivateKey = 0xa11ce;
@@ -204,6 +205,63 @@ contract HeroCardBaseCoverageTest is Test {
         vm.prank(alice);
         vm.expectRevert("ERC6551Account: assinatura expirada");
         heroCard.withdrawEth(tokenId, bob, 1 ether, deadline, signature);
+    }
+
+    /// @notice Testa que executeOnAccount reverte com deadline expirado
+    function test_executeOnAccount_reverts_if_deadline_expired() public {
+        uint256 tokenId = 1;
+        vm.prank(minter);
+        heroCard.mint(alice, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        uint256 deadline = block.timestamp - 1;
+        bytes memory signature = _signExecute(alicePrivateKey, tba, bob, 0, "", 0, deadline, 0);
+
+        vm.prank(alice);
+        vm.expectRevert("ERC6551Account: assinatura expirada");
+        heroCard.executeOnAccount(tokenId, bob, 0, "", 0, deadline, signature);
+    }
+
+    /// @notice Testa que executeOnAccount reverte com assinatura inválida
+    function test_executeOnAccount_reverts_if_signature_is_invalid() public {
+        uint256 tokenId = 1;
+        vm.prank(minter);
+        heroCard.mint(alice, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        uint256 deadline = block.timestamp + 1 hours;
+
+        // Assina para um destino diferente do que será chamado
+        bytes memory signature = _signExecute(alicePrivateKey, tba, carol, 0, "", 0, deadline, 0);
+
+        vm.prank(alice);
+        vm.expectRevert("ERC6551Account: assinatura invalida");
+        heroCard.executeOnAccount(tokenId, bob, 0, "", 0, deadline, signature);
+    }
+
+    /// @notice Testa que executeBatch reverte quando o lote excede o tamanho máximo
+    function test_executeBatch_reverts_when_batch_exceeds_max_size() public {
+        uint256 tokenId = 1;
+        vm.prank(minter);
+        heroCard.mint(alice, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+        ERC6551Account account = ERC6551Account(payable(tba));
+
+        uint256 length = account.MAX_BATCH_SIZE() + 1;
+        address[] memory targets = new address[](length);
+        uint256[] memory values = new uint256[](length);
+        bytes[] memory data = new bytes[](length);
+
+        for (uint256 i = 0; i < length; i++) {
+            targets[i] = bob;
+            values[i] = 0;
+            data[i] = "";
+        }
+
+        vm.prank(alice);
+        vm.expectRevert("ERC6551Account: batch muito grande");
+        account.executeBatch(targets, values, data, 0);
     }
 
     // =========================================================================
@@ -426,6 +484,58 @@ contract HeroCardBaseCoverageTest is Test {
         assertTrue(true);
     }
 
+    /// @notice Testa withdrawERC721 com assinatura válida e transferência real do NFT
+    function test_withdrawERC721_executes_transfer_to_recipient() public {
+        uint256 tokenId = 1;
+        vm.prank(minter);
+        heroCard.mint(alice, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+        uint256 nftId = 321;
+        mockNFT.mint(alice, nftId);
+        vm.startPrank(alice);
+        mockNFT.approve(address(heroCard), nftId);
+        heroCard.depositERC721(tokenId, address(mockNFT), nftId);
+        vm.stopPrank();
+
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("safeTransferFrom(address,address,uint256)")), tba, bob, nftId);
+        bytes memory signature = _signExecute(alicePrivateKey, tba, address(mockNFT), 0, data, 0, deadline, 0);
+
+        vm.prank(alice);
+        heroCard.withdrawERC721(tokenId, address(mockNFT), bob, nftId, deadline, signature);
+
+        assertEq(mockNFT.ownerOf(nftId), bob);
+    }
+
+    /// @notice Testa withdrawERC1155 com assinatura válida e transferência parcial do ativo
+    function test_withdrawERC1155_executes_transfer_to_recipient() public {
+        uint256 tokenId = 1;
+        vm.prank(minter);
+        heroCard.mint(alice, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+        uint256 assetId = 555;
+        uint256 amount = 40;
+        mockERC1155.mint(alice, assetId, amount);
+        vm.startPrank(alice);
+        mockERC1155.setApprovalForAll(address(heroCard), true);
+        heroCard.depositERC1155(tokenId, address(mockERC1155), assetId, amount);
+        vm.stopPrank();
+
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory callData = abi.encodeWithSelector(mockERC1155.safeTransferFrom.selector, tba, bob, assetId, 10, "");
+        bytes memory signature = _signExecute(alicePrivateKey, tba, address(mockERC1155), 0, callData, 0, deadline, 0);
+
+        vm.prank(alice);
+        heroCard.withdrawERC1155(tokenId, address(mockERC1155), bob, assetId, 10, deadline, "", signature);
+
+        assertEq(mockERC1155.balanceOf(bob, assetId), 10);
+        assertEq(mockERC1155.balanceOf(tba, assetId), 30);
+    }
+
     // =========================================================================
     // executeOnAccount - testes básicos
     // =========================================================================
@@ -483,6 +593,17 @@ contract HeroCardBaseCoverageTest is Test {
         assertEq(mockToken.balanceOf(address(heroCard)), 0);
     }
 
+    /// @notice Testa recuperação parcial de ativos via rescueERC20
+    function test_rescueERC20_recovers_partial_balance() public {
+        mockToken.mint(address(heroCard), 1000 ether);
+
+        vm.prank(owner);
+        heroCard.rescueERC20(address(mockToken), bob, 250 ether);
+
+        assertEq(mockToken.balanceOf(bob), 250 ether);
+        assertEq(mockToken.balanceOf(address(heroCard)), 750 ether);
+    }
+
     /// @notice Testa que rescueERC20 reverte se não é admin
     function test_rescueERC20_reverts_if_not_admin() public {
         mockToken.mint(address(heroCard), 1000 ether);
@@ -499,6 +620,12 @@ contract HeroCardBaseCoverageTest is Test {
         vm.prank(owner);
         vm.expectRevert("HeroCard: endereco destino invalido");
         heroCard.rescueERC20(address(mockToken), address(0), 1000 ether);
+    }
+
+    /// @notice Testa que o construtor reverte se o registry for zero
+    function test_constructor_reverts_if_registry_is_zero() public {
+        vm.expectRevert("HeroCard: registry invalido");
+        new HeroCard(address(0), address(accountImpl));
     }
 
     // =========================================================================
@@ -562,6 +689,26 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.withdrawEth(tokenId, bob, 1 ether, deadline, "");
     }
 
+    /// @notice Testa que executeOnAccount passa quando allowlist está ativa e destino permitido
+    function test_executeOnAccount_allows_when_target_is_allowed() public {
+        uint256 tokenId = 1;
+        vm.prank(minter);
+        heroCard.mint(alice, tokenId, "");
+
+        address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+        vm.startPrank(owner);
+        heroCard.setEnforceAllowlist(true);
+        heroCard.setAllowedTarget(bob, true);
+        vm.stopPrank();
+
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory signature = _signExecute(alicePrivateKey, tba, bob, 0, "", 0, deadline, 0);
+
+        vm.prank(alice);
+        heroCard.executeOnAccount(tokenId, bob, 0, "", 0, deadline, signature);
+    }
+
     /// @notice Testa que withdraw funciona quando allowlist está ativa e destino permitido
     function test_withdrawEth_success_when_allowlist_enforced_and_target_allowed() public {
         uint256 tokenId = 1;
@@ -610,6 +757,65 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.mint(bob, 2, "");
 
         assertEq(heroCard.totalSupply(), 2);
+    }
+
+    /// @notice Testa pause/unpause via role PAUSER_ROLE
+    function test_pause_and_unpause() public {
+        assertFalse(heroCard.paused());
+
+        vm.prank(owner);
+        heroCard.pause();
+        assertTrue(heroCard.paused());
+
+        vm.prank(owner);
+        heroCard.unpause();
+        assertFalse(heroCard.paused());
+    }
+
+    /// @notice Testa safeMint e tokenURI para o path de criação de token com URI
+    function test_safeMint_sets_token_uri() public {
+        vm.prank(minter);
+        heroCard.safeMint(alice, 7, "ipfs://abc");
+
+        assertEq(heroCard.ownerOf(7), alice);
+        assertEq(heroCard.tokenURI(7), "ipfs://abc");
+    }
+
+    /// @notice Testa mintBatch com quantidade inválida e duplicados
+    function test_mintBatch_reverts_for_invalid_quantity_and_duplicates() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = 10;
+        ids[1] = 10;
+        string[] memory uris = new string[](2);
+        uris[0] = "u1";
+        uris[1] = "u2";
+
+        vm.prank(minter);
+        vm.expectRevert("HeroCard: tokenIds duplicados");
+        heroCard.mintBatch(alice, ids, uris);
+
+        uint256[] memory emptyIds = new uint256[](0);
+        string[] memory emptyUris = new string[](0);
+        vm.prank(minter);
+        vm.expectRevert("HeroCard: quantidade invalida");
+        heroCard.mintBatch(alice, emptyIds, emptyUris);
+    }
+
+    /// @notice Testa mintBatch com sucesso para múltiplos tokens
+    function test_mintBatch_success() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = 11;
+        ids[1] = 12;
+        string[] memory uris = new string[](2);
+        uris[0] = "u1";
+        uris[1] = "u2";
+
+        vm.prank(minter);
+        heroCard.mintBatch(alice, ids, uris);
+
+        assertEq(heroCard.ownerOf(11), alice);
+        assertEq(heroCard.ownerOf(12), alice);
+        assertEq(heroCard.tokenURI(11), "u1");
     }
 
     // =========================================================================

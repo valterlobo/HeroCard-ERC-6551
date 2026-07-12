@@ -144,6 +144,50 @@ O endereço público da TBA para cada ID de NFT do `HeroCard` é previsível (at
 ### 3. Bloqueio de Ownership Cycles
 Para evitar um bloqueio lógico do contrato ("TBA ser proprietária do próprio NFT HeroCard atrelado a ela"), o método de envio foi projetado para negar tentativas intrínsecas de transferir seu próprio NFT. O `ERC6551Account` mapeia localmente as chamadas para `transferFrom` e `safeTransferFrom` garantindo segurança.
 
+### 4. Fluxo de assinatura e condições de execução das TBAs
+Para integradores, o fluxo de execução das TBAs segue as regras abaixo:
+
+1. A TBA só é válida no chain em que foi criada originalmente. Se o `chainId` embutido no bytecode da TBA não coincidir com `block.chainid`, a execução é rejeitada.
+2. O signer autorizado é o dono atual do NFT vinculado ao tokenId. A validação é feita por `isValidSigner()` e pela assinatura no payload.
+3. A assinatura é calculada sobre um hash estruturado contendo:
+   - `block.chainid`
+   - `address(this)` (o endereço da TBA)
+   - `to`
+   - `value`
+   - `keccak256(data)`
+   - `operation`
+   - `deadline`
+   - `state` (nonce interno da TBA)
+4. O payload deve ser assinado com o formato Ethereum Signed Message (`EthSignedMessage`), e o valor de `deadline` deve estar no futuro para que a assinatura seja aceita.
+5. As operações suportadas pela TBA são apenas `CALL` (`operation = 0`). `DELEGATECALL` e `CREATE` são rejeitados.
+6. O estado `_state` é incrementado antes da execução para evitar replay de assinatura para a mesma TBA.
+7. O contrato bloqueia tentativas de criar ownership cycles, incluindo transferências diretas e aprovações de `boundTokenId` que possam levar o NFT vinculado para dentro da própria TBA.
+
+#### Exemplo de payload para integradores
+```solidity
+bytes32 structHash = keccak256(
+    abi.encode(
+        block.chainid,
+        tbaAddress,
+        to,
+        value,
+        keccak256(data),
+        uint8(0),
+        deadline,
+        state
+    )
+);
+
+bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(structHash);
+```
+
+#### Regras práticas para quem integra
+- Sempre use a TBA correta para o tokenId do HeroCard correspondente.
+- Nunca reutilize uma assinatura após o `deadline` expirar.
+- Não confie apenas no `to` do payload; valide o conteúdo do `data` e o valor `value` antes de relatar a transação.
+- Para operações financeiras, considere um fluxo de relayer com validação adicional de destino e limite de valor.
+- Em integrações front-end, prefira exibir o `deadline`, o `state` e o `to` da execução para o usuário antes de confirmar.
+
 ---
 
 ## 📚 Referências

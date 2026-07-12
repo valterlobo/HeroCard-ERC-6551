@@ -114,6 +114,9 @@ contract ERC6551Account is
     /// @dev Tipo de operação CALL (único suportado)
     uint8 private constant OP_CALL = 0;
 
+    /// @dev Limite máximo de entradas aceitas por executeBatch()
+    uint256 public constant MAX_BATCH_SIZE = 50;
+
     // ── Selectors ERC-721 monitorados para detecção de ownership cycle ──────
     /// @dev transferFrom(address,address,uint256)
     bytes4 private constant _TRANSFER_FROM = IERC721.transferFrom.selector;
@@ -373,6 +376,7 @@ contract ERC6551Account is
 
         uint256 length = targets.length;
         require(length > 0, "ERC6551Account: batch vazio");
+        require(length <= MAX_BATCH_SIZE, "ERC6551Account: batch muito grande");
         require(values.length == length && data.length == length, "ERC6551Account: arrays com tamanhos diferentes");
 
         // ── Validação de saldo ETH ─────────────────────────────────────────

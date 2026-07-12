@@ -11,6 +11,12 @@ contract DummyToken is ERC721 {
     constructor() ERC721("Dummy", "DUM") {}
 }
 
+contract NoERC1271Implementation {
+    fallback() external payable {}
+
+    receive() external payable {}
+}
+
 contract ERC6551RegistryTest is Test {
     ERC6551Registry public registry;
     address public implementation;
@@ -61,5 +67,35 @@ contract ERC6551RegistryTest is Test {
     function test_createAccount_InvalidTokenContract() public {
         vm.expectRevert("ERC6551Registry: tokenContract invalido");
         registry.createAccount(implementation, salt, chainId, address(0), tokenId);
+    }
+
+    // Branch 5: implementation não é contrato
+    function test_createAccount_ImplementationNotContract() public {
+        address notAContract = address(0x1234);
+        vm.expectRevert("ERC6551Registry: implementacao deve ser contrato");
+        registry.createAccount(notAContract, salt, chainId, tokenContract, tokenId);
+    }
+
+    // Branch 6: tokenContract não é contrato
+    function test_createAccount_TokenContractNotContract() public {
+        address notAContract = address(0x5678);
+        vm.expectRevert("ERC6551Registry: tokenContract deve ser contrato");
+        registry.createAccount(implementation, salt, chainId, notAContract, tokenId);
+    }
+
+    // Branch 7: implementation não suporta ERC-1271
+    function test_createAccount_ImplementationWithoutERC1271() public {
+        address invalidImpl = address(new NoERC1271Implementation());
+        vm.expectRevert("ERC6551Registry: implementacao invalida");
+        registry.createAccount(invalidImpl, salt, chainId, tokenContract, tokenId);
+    }
+
+    // Branch 8: caminho feliz de criação de account
+    function test_createAccount_Success() public {
+        address created = registry.createAccount(implementation, salt, chainId, tokenContract, tokenId);
+        address predicted = registry.account(implementation, salt, chainId, tokenContract, tokenId);
+
+        assertEq(created, predicted);
+        assertTrue(created.code.length > 0, "deve ter codigo de contrato");
     }
 }
