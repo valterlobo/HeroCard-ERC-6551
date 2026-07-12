@@ -73,13 +73,15 @@ contract ERC6551Registry is IERC6551Registry {
 
         bytes memory code = _creationCode(implementation, chainId, tokenContract, tokenId, salt);
 
-        accountAddress = Create2Lib.computeAddress(salt, keccak256(code));
+        bytes32 finalSalt = keccak256(abi.encode(salt, chainId, tokenContract, tokenId));
+
+        accountAddress = Create2Lib.computeAddress(finalSalt, keccak256(code));
 
         // Idempotente: se já existe código, retorna sem erro
         if (accountAddress.code.length > 0) return accountAddress;
 
         assembly {
-            accountAddress := create2(0, add(code, 0x20), mload(code), salt)
+            accountAddress := create2(0, add(code, 0x20), mload(code), finalSalt)
         }
 
         if (accountAddress == address(0)) revert AccountCreationFailed();
@@ -95,7 +97,8 @@ contract ERC6551Registry is IERC6551Registry {
         returns (address)
     {
         bytes32 bytecodeHash = keccak256(_creationCode(implementation, chainId, tokenContract, tokenId, salt));
-        return Create2Lib.computeAddress(salt, bytecodeHash);
+        bytes32 finalSalt = keccak256(abi.encode(salt, chainId, tokenContract, tokenId));
+        return Create2Lib.computeAddress(finalSalt, bytecodeHash);
     }
 
     // =========================================================================
