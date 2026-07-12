@@ -385,22 +385,15 @@ contract HeroCardTest is Test {
         vm.deal(tba, 5 ether);
 
         uint256 bobBalanceBefore = bob.balance;
-
         uint256 value = 1 ether;
-        bytes memory data = "";
-        uint8 operation = 0;
-
+        uint256 deadline = block.timestamp + 1 hours;
         uint256 state = IERC6551Account(payable(tba)).state();
 
-        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, value, keccak256(data), operation, state));
-        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
-        bytes memory signature = abi.encodePacked(r, s, v);
+        bytes memory signature = _createSignature(privKey, tba, bob, value, "", 0, deadline, state);
 
         // Qualquer um pode enviar a transacao agora (relayer)
         vm.prank(address(0x123));
-        heroCard.executeOnAccount(tokenId, bob, value, data, operation, signature);
+        heroCard.executeOnAccount(tokenId, bob, value, "", 0, deadline, signature);
 
         assertEq(bob.balance, bobBalanceBefore + value);
         assertEq(IERC6551Account(payable(tba)).state(), state + 1);
@@ -421,20 +414,32 @@ contract HeroCardTest is Test {
         vm.prank(owner);
         heroCard.setEnforceAllowlist(true);
 
-        uint256 value = 1 ether;
-        bytes memory data = "";
-        uint8 operation = 0;
+        uint256 deadline = block.timestamp + 1 hours;
         uint256 state = IERC6551Account(payable(tba)).state();
 
-        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, value, keccak256(data), operation, state));
-        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
-        bytes memory signature = abi.encodePacked(r, s, v);
+        bytes memory signature = _createSignature(privKey, tba, bob, 1 ether, "", 0, deadline, state);
 
         // Executa com bob não permitido - deve falhar
         vm.prank(address(0x123));
         vm.expectRevert("HeroCard: destino nao permitido");
-        heroCard.executeOnAccount(tokenId, bob, value, data, operation, signature);
+        heroCard.executeOnAccount(tokenId, bob, 1 ether, "", 0, deadline, signature);
+    }
+
+    /// @notice Helper para criar assinatura e evitar stack too deep
+    function _createSignature(
+        uint256 privKey,
+        address tba,
+        address to,
+        uint256 value,
+        bytes memory data,
+        uint8 operation,
+        uint256 deadline,
+        uint256 state
+    ) internal view returns (bytes memory) {
+        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, to, value, keccak256(data), operation, deadline, state));
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
+        return abi.encodePacked(r, s, v);
     }
 
     function test_executeOnAccount_with_allowlist_enforced_succeeds_if_allowed() public {
@@ -455,20 +460,15 @@ contract HeroCardTest is Test {
         vm.stopPrank();
 
         uint256 bobBalanceBefore = bob.balance;
-        uint256 value = 1 ether;
-        bytes memory data = "";
-        uint8 operation = 0;
+        uint256 deadline = block.timestamp + 1 hours;
         uint256 state = IERC6551Account(payable(tba)).state();
 
-        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, value, keccak256(data), operation, state));
-        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
-        bytes memory signature = abi.encodePacked(r, s, v);
+        bytes memory signature = _createSignature(privKey, tba, bob, 1 ether, "", 0, deadline, state);
 
         vm.prank(address(0x123));
-        heroCard.executeOnAccount(tokenId, bob, value, data, operation, signature);
+        heroCard.executeOnAccount(tokenId, bob, 1 ether, "", 0, deadline, signature);
 
-        assertEq(bob.balance, bobBalanceBefore + value);
+        assertEq(bob.balance, bobBalanceBefore + 1 ether);
     }
 
     function test_allowlist_only_admin() public {
@@ -496,16 +496,17 @@ contract HeroCardTest is Test {
         heroCard.setEnforceAllowlist(true);
 
         uint256 amount = 1 ether;
+        uint256 deadline = block.timestamp + 1 hours;
         uint256 state = IERC6551Account(payable(tba)).state();
 
-        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, amount, keccak256(""), 0, state));
+        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, bob, amount, keccak256(""), 0, deadline, state));
         bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(address(0x123));
         vm.expectRevert("HeroCard: destino nao permitido");
-        heroCard.withdrawEth(tokenId, bob, amount, signature);
+        heroCard.withdrawEth(tokenId, bob, amount, deadline, signature);
     }
 
     function test_withdrawERC20_with_allowlist_enforced_reverts_if_not_allowed() public {
@@ -525,15 +526,16 @@ contract HeroCardTest is Test {
 
         uint256 amount = 100e18;
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, bob, amount);
+        uint256 deadline = block.timestamp + 1 hours;
         uint256 state = IERC6551Account(payable(tba)).state();
 
-        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, address(gold), 0, keccak256(data), 0, state));
+        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, address(gold), 0, keccak256(data), 0, deadline, state));
         bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(address(0x123));
         vm.expectRevert("HeroCard: destino nao permitido");
-        heroCard.withdrawERC20(tokenId, address(gold), bob, amount, signature);
+        heroCard.withdrawERC20(tokenId, address(gold), bob, amount, deadline, signature);
     }
 }

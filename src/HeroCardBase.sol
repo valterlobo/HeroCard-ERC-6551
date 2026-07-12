@@ -20,6 +20,7 @@ interface IHeroCardAccount {
         uint256 value,
         bytes calldata data,
         uint8 operation,
+        uint256 deadline,
         bytes calldata signature
     ) external payable returns (bytes memory);
 }
@@ -40,6 +41,8 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     event ERC20Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 amount);
     event ERC721Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 nftTokenId);
     event ERC1155Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 assetTokenId, uint256 amount);
+    event ERC20ApprovalRevoked(uint256 indexed tokenId, address indexed token, address indexed spender);
+    event ERC721OperatorRevoked(uint256 indexed tokenId, address indexed token, address indexed operator);
     event TargetAllowed(address indexed target, bool allowed);
     event AllowlistEnforced(bool enforced);
 
@@ -274,6 +277,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         uint256 value,
         bytes calldata data,
         uint8 operation,
+        uint256 deadline,
         bytes calldata signature
     ) external payable nonReentrant checkAllowlist(to) returns (bytes memory) {
         _requireOwned(tokenId);
@@ -281,7 +285,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         address tba = getAccount(tokenId, DEFAULT_SALT);
         require(tba.code.length > 0, "HeroCard: TBA nao existe");
 
-        return IHeroCardAccount(tba).executeWithSignature{value: msg.value}(to, value, data, operation, signature);
+        return IHeroCardAccount(tba).executeWithSignature{value: msg.value}(to, value, data, operation, deadline, signature);
     }
 
     /// @notice Saca ETH nativamente da TBA.
@@ -289,7 +293,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to Recebedor do ETH sendo retirado.
     /// @param amount Quantidade em WEI de ETH sendo extraída.
     /// @param signature Assinatura criptográfica que atesta e autoriza a operação.
-    function withdrawEth(uint256 tokenId, address to, uint256 amount, bytes calldata signature)
+    function withdrawEth(uint256 tokenId, address to, uint256 amount, uint256 deadline, bytes calldata signature)
         external
         nonReentrant
         checkAllowlist(to)
@@ -298,7 +302,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         require(to != address(0), "HeroCard: endereco destino invalido");
         address tba = getAccount(tokenId, DEFAULT_SALT);
         // Retorno ignorado: falhas propagadas como revert por executeWithSignature
-        IHeroCardAccount(tba).executeWithSignature(to, amount, "", 0, signature);
+        IHeroCardAccount(tba).executeWithSignature(to, amount, "", 0, deadline, signature);
         emit EthWithdrawn(tokenId, to, amount);
     }
 
@@ -308,7 +312,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to Conta recebedora dos ativos transferidos da TBA.
     /// @param amount Quantidade repassada.
     /// @param signature Assinatura do autorizador/dono.
-    function withdrawERC20(uint256 tokenId, address token, address to, uint256 amount, bytes calldata signature)
+    function withdrawERC20(uint256 tokenId, address token, address to, uint256 amount, uint256 deadline, bytes calldata signature)
         external
         nonReentrant
         checkAllowlist(to)
@@ -318,7 +322,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
         // slither-disable-next-line unused-return
-        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, deadline, signature);
         emit ERC20Withdrawn(tokenId, token, to, amount);
     }
 
@@ -328,7 +332,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to Destinatário do ativo.
     /// @param nftTokenId ID do ERC-721 sendo retirado.
     /// @param signature Assinatura validadora.
-    function withdrawERC721(uint256 tokenId, address token, address to, uint256 nftTokenId, bytes calldata signature)
+    function withdrawERC721(uint256 tokenId, address token, address to, uint256 nftTokenId, uint256 deadline, bytes calldata signature)
         external
         nonReentrant
         checkAllowlist(to)
@@ -339,7 +343,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         bytes memory data =
             abi.encodeWithSelector(bytes4(keccak256("safeTransferFrom(address,address,uint256)")), tba, to, nftTokenId);
         // slither-disable-next-line unused-return
-        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, deadline, signature);
         emit ERC721Withdrawn(tokenId, token, to, nftTokenId);
     }
 
@@ -357,6 +361,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         address to,
         uint256 assetTokenId,
         uint256 amount,
+        uint256 deadline,
         bytes calldata data,
         bytes calldata signature
     ) external nonReentrant checkAllowlist(to) {
@@ -366,7 +371,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         bytes memory callData =
             abi.encodeWithSelector(IERC1155.safeTransferFrom.selector, tba, to, assetTokenId, amount, data);
         // slither-disable-next-line unused-return
-        IHeroCardAccount(tba).executeWithSignature(token, 0, callData, 0, signature);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, callData, 0, deadline, signature);
         emit ERC1155Withdrawn(tokenId, token, to, assetTokenId, amount);
     }
 
@@ -375,7 +380,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param token O contrato do token ERC-20.
     /// @param spender O endereço cujo allowance será definido para zero.
     /// @param signature Assinatura do owner autorizando.
-    function revokeERC20Approvals(uint256 tokenId, address token, address spender, bytes calldata signature)
+    function revokeERC20Approvals(uint256 tokenId, address token, address spender, uint256 deadline, bytes calldata signature)
         external
         nonReentrant
     {
@@ -383,7 +388,8 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC20.approve.selector, spender, 0);
         // slither-disable-next-line unused-return
-        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, deadline, signature);
+        emit ERC20ApprovalRevoked(tokenId, token, spender);
     }
 
     /// @notice Interrompe a autoridade fornecida por setApprovalForAll (ERC-721/1155) pela TBA a um dado operator.
@@ -391,7 +397,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param token Contrato cujas aprovações serão interrompidas.
     /// @param operator A conta que perderá os direitos.
     /// @param signature Assinatura do owner autorizando.
-    function revokeERC721Operators(uint256 tokenId, address token, address operator, bytes calldata signature)
+    function revokeERC721Operators(uint256 tokenId, address token, address operator, uint256 deadline, bytes calldata signature)
         external
         nonReentrant
     {
@@ -399,7 +405,8 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC721.setApprovalForAll.selector, operator, false);
         // slither-disable-next-line unused-return
-        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+        IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, deadline, signature);
+        emit ERC721OperatorRevoked(tokenId, token, operator);
     }
 
     /// @notice Retorna a contagem atual de HeroCards emitidos que não foram queimados.

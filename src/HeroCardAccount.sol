@@ -26,16 +26,19 @@ contract HeroCardAccount is ERC6551Account {
         uint256 value,
         bytes calldata data,
         uint8 operation,
+        uint256 deadline,
         bytes calldata signature
     ) external payable nonReentrant returns (bytes memory result) {
         (uint256 chainId,,) = token();
         if (chainId != block.chainid) revert WrongChain(chainId, block.chainid);
 
         require(operation == 0, "ERC6551Account: operacao nao suportada");
+        require(block.timestamp <= deadline, "ERC6551Account: assinatura expirada");
 
-        // Hash incluindo o chainId atual e o endereço da conta para evitar cross-chain replay ou cross-account replay
+        // Hash incluindo o chainId atual, endereço da conta, deadline e nonce (_state)
+        // para evitar cross-chain replay, cross-account replay e assinaturas expiradas
         bytes32 structHash =
-            keccak256(abi.encode(block.chainid, address(this), to, value, keccak256(data), operation, _state));
+            keccak256(abi.encode(block.chainid, address(this), to, value, keccak256(data), operation, deadline, _state));
 
         // Transforma no formato "Ethereum Signed Message"
         bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(structHash);
