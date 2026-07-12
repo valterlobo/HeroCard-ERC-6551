@@ -7,12 +7,11 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /// @title HeroCardAccount
 /// @notice Subclasse de ERC6551Account específica para HeroCard.
-/// @dev Extensão de `ERC6551Account` que implementa a função de 
-///      meta-transações (executeWithSignature). Aderimos à especificação 
+/// @dev Extensão de `ERC6551Account` que implementa a função de
+///      meta-transações (executeWithSignature). Aderimos à especificação
 ///      ERC-6551 de isolamento mantendo estritamente a validação de assinatura
 ///      através de EIP-1271 com o owner verdadeiro.
 contract HeroCardAccount is ERC6551Account {
-
     /// @notice Executa uma chamada usando uma assinatura digital do proprietário atual
     /// @dev Permite meta-transactions encaminhadas pelo HeroCardBase ou outros relayers
     /// @param to Endereço de destino
@@ -37,8 +36,9 @@ contract HeroCardAccount is ERC6551Account {
 
         // Hash incluindo o chainId atual, endereço da conta, deadline e nonce (_state)
         // para evitar cross-chain replay, cross-account replay e assinaturas expiradas
-        bytes32 structHash =
-            keccak256(abi.encode(block.chainid, address(this), to, value, keccak256(data), operation, deadline, _state));
+        bytes32 structHash = keccak256(
+            abi.encode(block.chainid, address(this), to, value, keccak256(data), operation, deadline, _state)
+        );
 
         // Transforma no formato "Ethereum Signed Message"
         bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(structHash);

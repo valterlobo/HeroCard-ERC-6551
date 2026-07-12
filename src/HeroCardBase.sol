@@ -40,7 +40,9 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     event EthWithdrawn(uint256 indexed tokenId, address indexed to, uint256 amount);
     event ERC20Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 amount);
     event ERC721Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 nftTokenId);
-    event ERC1155Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 assetTokenId, uint256 amount);
+    event ERC1155Withdrawn(
+        uint256 indexed tokenId, address indexed token, address indexed to, uint256 assetTokenId, uint256 amount
+    );
     event ERC20ApprovalRevoked(uint256 indexed tokenId, address indexed token, address indexed spender);
     event ERC721OperatorRevoked(uint256 indexed tokenId, address indexed token, address indexed operator);
     event TargetAllowed(address indexed target, bool allowed);
@@ -285,7 +287,10 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         address tba = getAccount(tokenId, DEFAULT_SALT);
         require(tba.code.length > 0, "HeroCard: TBA nao existe");
 
-        return IHeroCardAccount(tba).executeWithSignature{value: msg.value}(to, value, data, operation, deadline, signature);
+        return
+            IHeroCardAccount(tba).executeWithSignature{value: msg.value}(
+                to, value, data, operation, deadline, signature
+            );
     }
 
     /// @notice Saca ETH nativamente da TBA.
@@ -312,11 +317,14 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to Conta recebedora dos ativos transferidos da TBA.
     /// @param amount Quantidade repassada.
     /// @param signature Assinatura do autorizador/dono.
-    function withdrawERC20(uint256 tokenId, address token, address to, uint256 amount, uint256 deadline, bytes calldata signature)
-        external
-        nonReentrant
-        checkAllowlist(to)
-    {
+    function withdrawERC20(
+        uint256 tokenId,
+        address token,
+        address to,
+        uint256 amount,
+        uint256 deadline,
+        bytes calldata signature
+    ) external nonReentrant checkAllowlist(to) {
         _requireOwned(tokenId);
         require(to != address(0), "HeroCard: endereco destino invalido");
         address tba = getAccount(tokenId, DEFAULT_SALT);
@@ -331,11 +339,14 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to Destinatário do ativo.
     /// @param nftTokenId ID do ERC-721 sendo retirado.
     /// @param signature Assinatura validadora.
-    function withdrawERC721(uint256 tokenId, address token, address to, uint256 nftTokenId, uint256 deadline, bytes calldata signature)
-        external
-        nonReentrant
-        checkAllowlist(to)
-    {
+    function withdrawERC721(
+        uint256 tokenId,
+        address token,
+        address to,
+        uint256 nftTokenId,
+        uint256 deadline,
+        bytes calldata signature
+    ) external nonReentrant checkAllowlist(to) {
         _requireOwned(tokenId);
         require(to != address(0), "HeroCard: endereco destino invalido");
         address tba = getAccount(tokenId, DEFAULT_SALT);
@@ -377,10 +388,13 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param token O contrato do token ERC-20.
     /// @param spender O endereço cujo allowance será definido para zero.
     /// @param signature Assinatura do owner autorizando.
-    function revokeERC20Approvals(uint256 tokenId, address token, address spender, uint256 deadline, bytes calldata signature)
-        external
-        nonReentrant
-    {
+    function revokeERC20Approvals(
+        uint256 tokenId,
+        address token,
+        address spender,
+        uint256 deadline,
+        bytes calldata signature
+    ) external nonReentrant {
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC20.approve.selector, spender, 0);
@@ -393,10 +407,13 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param token Contrato cujas aprovações serão interrompidas.
     /// @param operator A conta que perderá os direitos.
     /// @param signature Assinatura do owner autorizando.
-    function revokeERC721Operators(uint256 tokenId, address token, address operator, uint256 deadline, bytes calldata signature)
-        external
-        nonReentrant
-    {
+    function revokeERC721Operators(
+        uint256 tokenId,
+        address token,
+        address operator,
+        uint256 deadline,
+        bytes calldata signature
+    ) external nonReentrant {
         _requireOwned(tokenId);
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC721.setApprovalForAll.selector, operator, false);

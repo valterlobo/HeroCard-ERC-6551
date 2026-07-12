@@ -20,11 +20,11 @@ contract HeroCardBaseCoverageTest is Test {
     address public owner = makeAddr("owner");
     address public minter = makeAddr("minter");
     address public bob = makeAddr("bob");
-    
+
     // Alice com private key conhecida para assinaturas
     uint256 public alicePrivateKey = 0xa11ce;
     address public alice;
-    
+
     MockERC20 public mockToken;
     MockERC721 public mockNFT;
     MockERC1155 public mockERC1155;
@@ -32,7 +32,7 @@ contract HeroCardBaseCoverageTest is Test {
     function setUp() public {
         // Configura alice com private key conhecida
         alice = vm.addr(alicePrivateKey);
-        
+
         vm.startPrank(owner);
         registry = new ERC6551Registry();
         accountImpl = new HeroCardAccount();
@@ -48,7 +48,7 @@ contract HeroCardBaseCoverageTest is Test {
         vm.deal(alice, 100 ether);
         vm.deal(bob, 100 ether);
     }
-    
+
     /// @notice Helper para criar assinatura válida
     function _signExecute(
         uint256 privateKey,
@@ -138,7 +138,7 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.mint(alice, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         // Deposita ETH na TBA
         vm.prank(alice);
         heroCard.depositEth{value: 5 ether}(tokenId);
@@ -147,16 +147,7 @@ contract HeroCardBaseCoverageTest is Test {
         // Prepara assinatura para withdraw
         uint256 deadline = block.timestamp + 1 hours;
         uint256 state = 0; // Primeiro uso da TBA
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            bob,
-            1 ether,
-            "",
-            0,
-            deadline,
-            state
-        );
+        bytes memory signature = _signExecute(alicePrivateKey, tba, bob, 1 ether, "", 0, deadline, state);
 
         uint256 bobBalanceBefore = bob.balance;
 
@@ -175,7 +166,7 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.mint(alice, tokenId, "");
 
         uint256 deadline = block.timestamp + 1 hours;
-        
+
         vm.prank(bob);
         vm.expectRevert();
         heroCard.withdrawEth(tokenId, bob, 1 ether, deadline, "");
@@ -201,23 +192,14 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.mint(alice, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         vm.prank(alice);
         heroCard.depositEth{value: 5 ether}(tokenId);
 
         // Deadline já passou
         uint256 deadline = block.timestamp - 1;
         uint256 state = 0;
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            bob,
-            1 ether,
-            "",
-            0,
-            deadline,
-            state
-        );
+        bytes memory signature = _signExecute(alicePrivateKey, tba, bob, 1 ether, "", 0, deadline, state);
 
         vm.prank(alice);
         vm.expectRevert("ERC6551Account: assinatura expirada");
@@ -235,7 +217,7 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.mint(alice, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         // Deposita tokens na TBA
         mockToken.mint(alice, 1000 ether);
         vm.startPrank(alice);
@@ -248,16 +230,7 @@ contract HeroCardBaseCoverageTest is Test {
         // Prepara assinatura
         uint256 deadline = block.timestamp + 1 hours;
         bytes memory data = abi.encodeWithSelector(mockToken.transfer.selector, bob, 100 ether);
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            address(mockToken),
-            0,
-            data,
-            0,
-            deadline,
-            0
-        );
+        bytes memory signature = _signExecute(alicePrivateKey, tba, address(mockToken), 0, data, 0, deadline, 0);
 
         // Executa withdraw
         vm.prank(alice);
@@ -291,7 +264,7 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.mint(alice, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         // Deposita NFT na TBA
         uint256 nftId = 999;
         mockNFT.mint(alice, nftId);
@@ -304,22 +277,9 @@ contract HeroCardBaseCoverageTest is Test {
 
         // Prepara assinatura
         uint256 deadline = block.timestamp + 1 hours;
-        bytes memory data = abi.encodeWithSelector(
-            bytes4(keccak256("safeTransferFrom(address,address,uint256)")),
-            tba,
-            bob,
-            nftId
-        );
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            address(mockNFT),
-            0,
-            data,
-            0,
-            deadline,
-            0
-        );
+        bytes memory data =
+            abi.encodeWithSelector(bytes4(keccak256("safeTransferFrom(address,address,uint256)")), tba, bob, nftId);
+        bytes memory signature = _signExecute(alicePrivateKey, tba, address(mockNFT), 0, data, 0, deadline, 0);
 
         // Executa withdraw
         vm.prank(alice);
@@ -352,7 +312,7 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.mint(alice, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         // Deposita ERC1155 na TBA
         uint256 assetId = 777;
         uint256 amount = 50;
@@ -366,24 +326,8 @@ contract HeroCardBaseCoverageTest is Test {
 
         // Prepara assinatura
         uint256 deadline = block.timestamp + 1 hours;
-        bytes memory callData = abi.encodeWithSelector(
-            mockERC1155.safeTransferFrom.selector,
-            tba,
-            bob,
-            assetId,
-            10,
-            ""
-        );
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            address(mockERC1155),
-            0,
-            callData,
-            0,
-            deadline,
-            0
-        );
+        bytes memory callData = abi.encodeWithSelector(mockERC1155.safeTransferFrom.selector, tba, bob, assetId, 10, "");
+        bytes memory signature = _signExecute(alicePrivateKey, tba, address(mockERC1155), 0, callData, 0, deadline, 0);
 
         // Executa withdraw
         vm.prank(alice);
@@ -434,21 +378,12 @@ contract HeroCardBaseCoverageTest is Test {
         // Prepara assinatura
         uint256 deadline = block.timestamp + 1 hours;
         bytes memory data = abi.encodeWithSelector(mockToken.approve.selector, bob, 0);
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            address(mockToken),
-            0,
-            data,
-            0,
-            deadline,
-            0
-        );
+        bytes memory signature = _signExecute(alicePrivateKey, tba, address(mockToken), 0, data, 0, deadline, 0);
 
         // Executa revoke
         vm.prank(alice);
         heroCard.revokeERC20Approvals(tokenId, address(mockToken), bob, deadline, signature);
-        
+
         // Verifica que não houve revert
         assertTrue(true);
     }
@@ -481,21 +416,12 @@ contract HeroCardBaseCoverageTest is Test {
         // Prepara assinatura
         uint256 deadline = block.timestamp + 1 hours;
         bytes memory data = abi.encodeWithSelector(mockNFT.setApprovalForAll.selector, bob, false);
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            address(mockNFT),
-            0,
-            data,
-            0,
-            deadline,
-            0
-        );
+        bytes memory signature = _signExecute(alicePrivateKey, tba, address(mockNFT), 0, data, 0, deadline, 0);
 
         // Executa revoke
         vm.prank(alice);
         heroCard.revokeERC721Operators(tokenId, address(mockNFT), bob, deadline, signature);
-        
+
         // Verifica que não houve revert
         assertTrue(true);
     }
@@ -514,30 +440,13 @@ contract HeroCardBaseCoverageTest is Test {
 
         // Prepara assinatura
         uint256 deadline = block.timestamp + 1 hours;
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            bob,
-            1 ether,
-            "",
-            0,
-            deadline,
-            0
-        );
+        bytes memory signature = _signExecute(alicePrivateKey, tba, bob, 1 ether, "", 0, deadline, 0);
 
         uint256 bobBalanceBefore = bob.balance;
 
         // Executa com msg.value
         vm.prank(alice);
-        heroCard.executeOnAccount{value: 1 ether}(
-            tokenId,
-            bob,
-            1 ether,
-            "",
-            0,
-            deadline,
-            signature
-        );
+        heroCard.executeOnAccount{value: 1 ether}(tokenId, bob, 1 ether, "", 0, deadline, signature);
 
         assertEq(bob.balance, bobBalanceBefore + 1 ether);
     }
@@ -550,7 +459,7 @@ contract HeroCardBaseCoverageTest is Test {
 
         // Usa salt diferente (TBA não existe)
         bytes32 customSalt = keccak256("nonexistent");
-        
+
         // Temporariamente, vamos apenas testar que a função existe
         // Este teste específico é difícil sem modificar o contrato
         assertTrue(true);
@@ -660,7 +569,7 @@ contract HeroCardBaseCoverageTest is Test {
         heroCard.mint(alice, tokenId, "");
 
         address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
-        
+
         // Deposita ETH
         vm.prank(alice);
         heroCard.depositEth{value: 5 ether}(tokenId);
@@ -673,16 +582,7 @@ contract HeroCardBaseCoverageTest is Test {
 
         // Prepara assinatura
         uint256 deadline = block.timestamp + 1 hours;
-        bytes memory signature = _signExecute(
-            alicePrivateKey,
-            tba,
-            bob,
-            1 ether,
-            "",
-            0,
-            deadline,
-            0
-        );
+        bytes memory signature = _signExecute(alicePrivateKey, tba, bob, 1 ether, "", 0, deadline, 0);
 
         uint256 bobBalanceBefore = bob.balance;
 

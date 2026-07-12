@@ -61,7 +61,7 @@ contract HeroCardAccountCoverageTest is Test {
     function test_executeWithSignature_rejects_delegatecall() public {
         uint256 aliceKey = 0xA11CE;
         address aliceSigner = vm.addr(aliceKey);
-        
+
         uint256 tokenId = 1;
         vm.prank(minter);
         heroCard.mint(aliceSigner, tokenId, "");
@@ -70,20 +70,20 @@ contract HeroCardAccountCoverageTest is Test {
 
         // Cria assinatura válida mas com operation=1 (DELEGATECALL)
         uint256 deadline = block.timestamp + 1 hours;
-        bytes32 structHash = keccak256(abi.encode(
-            block.chainid,
-            tbaAddress,
-            bob,
-            0,
-            keccak256(""),
-            uint8(1), // DELEGATECALL
-            deadline,
-            uint256(0)
-        ));
-
-        bytes32 ethSignedHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
+        bytes32 structHash = keccak256(
+            abi.encode(
+                block.chainid,
+                tbaAddress,
+                bob,
+                0,
+                keccak256(""),
+                uint8(1), // DELEGATECALL
+                deadline,
+                uint256(0)
+            )
         );
+
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, ethSignedHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -97,7 +97,7 @@ contract HeroCardAccountCoverageTest is Test {
     function test_executeWithSignature_rejects_create() public {
         uint256 aliceKey = 0xA11CE;
         address aliceSigner = vm.addr(aliceKey);
-        
+
         uint256 tokenId = 1;
         vm.prank(minter);
         heroCard.mint(aliceSigner, tokenId, "");
@@ -105,20 +105,20 @@ contract HeroCardAccountCoverageTest is Test {
         address tbaAddress = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
 
         uint256 deadline = block.timestamp + 1 hours;
-        bytes32 structHash = keccak256(abi.encode(
-            block.chainid,
-            tbaAddress,
-            bob,
-            0,
-            keccak256(""),
-            uint8(2), // CREATE
-            deadline,
-            uint256(0)
-        ));
-
-        bytes32 ethSignedHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
+        bytes32 structHash = keccak256(
+            abi.encode(
+                block.chainid,
+                tbaAddress,
+                bob,
+                0,
+                keccak256(""),
+                uint8(2), // CREATE
+                deadline,
+                uint256(0)
+            )
         );
+
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, ethSignedHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -138,7 +138,7 @@ contract HeroCardAccountCoverageTest is Test {
     function test_executeWithSignature_propagates_revert() public {
         uint256 aliceKey = 0xA11CE;
         address aliceSigner = vm.addr(aliceKey);
-        
+
         uint256 tokenId = 1;
         vm.prank(minter);
         heroCard.mint(aliceSigner, tokenId, "");
@@ -148,26 +148,17 @@ contract HeroCardAccountCoverageTest is Test {
         // Deploy contrato que sempre reverte
         AlwaysRevert reverter = new AlwaysRevert();
 
-        bytes memory callData = abi.encodeWithSelector(
-            AlwaysRevert.fail.selector
-        );
+        bytes memory callData = abi.encodeWithSelector(AlwaysRevert.fail.selector);
 
         // Cria assinatura válida
         uint256 deadline = block.timestamp + 1 hours;
-        bytes32 structHash = keccak256(abi.encode(
-            block.chainid,
-            tbaAddress,
-            address(reverter),
-            0,
-            keccak256(callData),
-            uint8(0),
-            deadline,
-            uint256(0)
-        ));
-
-        bytes32 ethSignedHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
+        bytes32 structHash = keccak256(
+            abi.encode(
+                block.chainid, tbaAddress, address(reverter), 0, keccak256(callData), uint8(0), deadline, uint256(0)
+            )
         );
+
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, ethSignedHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -175,22 +166,14 @@ contract HeroCardAccountCoverageTest is Test {
         // Deve propagar o revert com mensagem original
         vm.prank(aliceSigner);
         vm.expectRevert("AlwaysRevert: intentional");
-        heroCard.executeOnAccount(
-            tokenId,
-            address(reverter),
-            0,
-            callData,
-            0,
-            deadline,
-            signature
-        );
+        heroCard.executeOnAccount(tokenId, address(reverter), 0, callData, 0, deadline, signature);
     }
 
     /// @notice Testa propagação de revert sem mensagem (empty revert)
     function test_executeWithSignature_propagates_empty_revert() public {
         uint256 aliceKey = 0xA11CE;
         address aliceSigner = vm.addr(aliceKey);
-        
+
         uint256 tokenId = 1;
         vm.prank(minter);
         heroCard.mint(aliceSigner, tokenId, "");
@@ -199,25 +182,16 @@ contract HeroCardAccountCoverageTest is Test {
 
         EmptyRevert reverter = new EmptyRevert();
 
-        bytes memory callData = abi.encodeWithSelector(
-            EmptyRevert.failEmpty.selector
-        );
+        bytes memory callData = abi.encodeWithSelector(EmptyRevert.failEmpty.selector);
 
         uint256 deadline = block.timestamp + 1 hours;
-        bytes32 structHash = keccak256(abi.encode(
-            block.chainid,
-            tbaAddress,
-            address(reverter),
-            0,
-            keccak256(callData),
-            uint8(0),
-            deadline,
-            uint256(0)
-        ));
-
-        bytes32 ethSignedHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
+        bytes32 structHash = keccak256(
+            abi.encode(
+                block.chainid, tbaAddress, address(reverter), 0, keccak256(callData), uint8(0), deadline, uint256(0)
+            )
         );
+
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, ethSignedHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -225,22 +199,14 @@ contract HeroCardAccountCoverageTest is Test {
         // Deve reverter mesmo sem mensagem
         vm.prank(aliceSigner);
         vm.expectRevert();
-        heroCard.executeOnAccount(
-            tokenId,
-            address(reverter),
-            0,
-            callData,
-            0,
-            deadline,
-            signature
-        );
+        heroCard.executeOnAccount(tokenId, address(reverter), 0, callData, 0, deadline, signature);
     }
 
     /// @notice Testa que revert por falta de ETH é propagado corretamente
     function test_executeWithSignature_propagates_insufficient_funds() public {
         uint256 aliceKey = 0xA11CE;
         address aliceSigner = vm.addr(aliceKey);
-        
+
         uint256 tokenId = 1;
         vm.prank(minter);
         heroCard.mint(aliceSigner, tokenId, "");
@@ -249,20 +215,20 @@ contract HeroCardAccountCoverageTest is Test {
 
         // TBA não tem ETH, mas tenta enviar 1 ether
         uint256 deadline = block.timestamp + 1 hours;
-        bytes32 structHash = keccak256(abi.encode(
-            block.chainid,
-            tbaAddress,
-            bob,
-            1 ether, // Mais do que tem
-            keccak256(""),
-            uint8(0),
-            deadline,
-            uint256(0)
-        ));
-
-        bytes32 ethSignedHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
+        bytes32 structHash = keccak256(
+            abi.encode(
+                block.chainid,
+                tbaAddress,
+                bob,
+                1 ether, // Mais do que tem
+                keccak256(""),
+                uint8(0),
+                deadline,
+                uint256(0)
+            )
         );
+
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, ethSignedHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -292,10 +258,10 @@ contract HeroCardAccountCoverageTest is Test {
     function test_executeWithSignature_rejects_wrong_signer() public {
         uint256 aliceKey = 0xA11CE;
         address aliceSigner = vm.addr(aliceKey);
-        
+
         uint256 bobKey = 0xB0B;
         // address bobSigner = vm.addr(bobKey);
-        
+
         uint256 tokenId = 1;
         vm.prank(minter);
         heroCard.mint(aliceSigner, tokenId, ""); // Alice é dona
@@ -304,20 +270,10 @@ contract HeroCardAccountCoverageTest is Test {
 
         // Bob assina em vez de Alice
         uint256 deadline = block.timestamp + 1 hours;
-        bytes32 structHash = keccak256(abi.encode(
-            block.chainid,
-            tbaAddress,
-            bob,
-            0,
-            keccak256(""),
-            uint8(0),
-            deadline,
-            uint256(0)
-        ));
+        bytes32 structHash =
+            keccak256(abi.encode(block.chainid, tbaAddress, bob, 0, keccak256(""), uint8(0), deadline, uint256(0)));
 
-        bytes32 ethSignedHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
-        );
+        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobKey, ethSignedHash); // Bob assina
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -338,7 +294,7 @@ contract HeroCardAccountCoverageTest is Test {
 
         // State inicial deve ser 0
         assertEq(tba.state(), 0, "state inicial deve ser 0");
-        
+
         // O código de executeWithSignature usa _state para prevenir replay:
         // bytes32 structHash = keccak256(abi.encode(..., _state));
         assertTrue(true, "state is used in signature hash");

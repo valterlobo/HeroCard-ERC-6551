@@ -436,7 +436,9 @@ contract HeroCardTest is Test {
         uint256 deadline,
         uint256 state
     ) internal view returns (bytes memory) {
-        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, to, value, keccak256(data), operation, deadline, state));
+        bytes32 structHash = keccak256(
+            abi.encode(block.chainid, tba, to, value, keccak256(data), operation, deadline, state)
+        );
         bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
         return abi.encodePacked(r, s, v);
@@ -529,7 +531,8 @@ contract HeroCardTest is Test {
         uint256 deadline = block.timestamp + 1 hours;
         uint256 state = IERC6551Account(payable(tba)).state();
 
-        bytes32 structHash = keccak256(abi.encode(block.chainid, tba, address(gold), 0, keccak256(data), 0, deadline, state));
+        bytes32 structHash =
+            keccak256(abi.encode(block.chainid, tba, address(gold), 0, keccak256(data), 0, deadline, state));
         bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, ethSignedHash);
         bytes memory signature = abi.encodePacked(r, s, v);

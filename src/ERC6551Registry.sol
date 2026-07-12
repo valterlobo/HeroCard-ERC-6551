@@ -53,19 +53,12 @@ contract ERC6551Registry is IERC6551Registry {
         require(tokenContract != address(0), "ERC6551Registry: tokenContract invalido");
 
         // Validação de código
-        require(
-            implementation.code.length > 0,
-            "ERC6551Registry: implementacao deve ser contrato"
-        );
-        require(
-            tokenContract.code.length > 0,
-            "ERC6551Registry: tokenContract deve ser contrato"
-        );
+        require(implementation.code.length > 0, "ERC6551Registry: implementacao deve ser contrato");
+        require(tokenContract.code.length > 0, "ERC6551Registry: tokenContract deve ser contrato");
 
         // Validação de interface ERC-1271 (suporte a meta-transações via ERC-165)
-        (bool success, bytes memory data) = implementation.staticcall(
-            abi.encodeWithSelector(0x01ffc9a7, bytes4(0x1626ba7e))
-        );
+        (bool success, bytes memory data) =
+            implementation.staticcall(abi.encodeWithSelector(0x01ffc9a7, bytes4(0x1626ba7e)));
         if (!success || data.length < 32) {
             revert("ERC6551Registry: implementacao invalida");
         }
