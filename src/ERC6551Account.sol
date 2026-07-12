@@ -328,7 +328,6 @@ contract ERC6551Account is
         }
 
         bool success;
-        // slither-disable-next-line missing-zero-check
         (success, result) = to.call{value: value}(data);
 
         if (!success) {
@@ -407,7 +406,6 @@ contract ERC6551Account is
             _checkOwnershipCycle(targets[i], data[i]);
 
             bool success;
-            // slither-disable-next-line calls-loop
             (success, results[i]) = targets[i].call{value: values[i]}(data[i]);
 
             if (!success) {

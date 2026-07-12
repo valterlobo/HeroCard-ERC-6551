@@ -57,7 +57,6 @@ contract HeroCardAccount is ERC6551Account {
         }
 
         bool success;
-        // slither-disable-next-line missing-zero-check,arbitrary-send-eth
         (success, result) = to.call{value: value}(data);
 
         if (!success) {
