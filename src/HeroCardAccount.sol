@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "./ERC6551Account.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /// @title HeroCardAccount
 /// @notice Subclasse de ERC6551Account específica para HeroCard.
@@ -37,7 +38,7 @@ contract HeroCardAccount is ERC6551Account {
             keccak256(abi.encode(block.chainid, address(this), to, value, keccak256(data), operation, _state));
 
         // Transforma no formato "Ethereum Signed Message"
-        bytes32 ethSignedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+        bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(structHash);
 
         require(
             SignatureChecker.isValidSignatureNow(_owner(), ethSignedHash, signature),

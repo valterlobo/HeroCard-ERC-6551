@@ -209,6 +209,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     function depositERC20(uint256 tokenId, address tokenContract, uint256 amount) external nonReentrant {
         _requireOwned(tokenId);
         require(amount > 0, "HeroCard: quantidade zero");
+        require(tokenContract.code.length > 0, "HeroCard: token deve ser contrato");
 
         address tba = _getExistingTba(tokenId);
 
@@ -221,6 +222,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @dev A TBA já deve existir. Requer aprovação prévia do NFT.
     function depositERC721(uint256 tokenId, address nftContract, uint256 nftTokenId) external nonReentrant {
         _requireOwned(tokenId);
+        require(nftContract.code.length > 0, "HeroCard: token deve ser contrato");
         address tba = _getExistingTba(tokenId);
         IERC721(nftContract).safeTransferFrom(msg.sender, tba, nftTokenId);
     }
@@ -232,6 +234,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         nonReentrant
     {
         _requireOwned(tokenId);
+        require(tokenContract.code.length > 0, "HeroCard: token deve ser contrato");
         address tba = _getExistingTba(tokenId);
         IERC1155(tokenContract).safeTransferFrom(msg.sender, tba, assetTokenId, amount, "");
     }
@@ -264,6 +267,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         _requireOwned(tokenId);
 
         address tba = getAccount(tokenId, DEFAULT_SALT);
+        require(tba.code.length > 0, "HeroCard: TBA nao existe");
 
         return IHeroCardAccount(tba).executeWithSignature{value: msg.value}(to, value, data, operation, signature);
     }
@@ -390,6 +394,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to Destino de recuperação.
     /// @param amount Quantia a ser resgatada.
     function rescueERC20(address token, address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(to != address(0), "HeroCard: endereco destino invalido");
         IERC20(token).safeTransfer(to, amount);
     }
 
