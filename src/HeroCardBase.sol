@@ -36,6 +36,10 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     event TbaCreated(uint256 indexed tokenId, address indexed accountAddress);
     event EthDeposited(uint256 indexed tokenId, address indexed from, uint256 amount);
     event Erc20Deposited(uint256 indexed tokenId, address indexed token, address indexed from, uint256 amount);
+    event EthWithdrawn(uint256 indexed tokenId, address indexed to, uint256 amount);
+    event ERC20Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 amount);
+    event ERC721Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 nftTokenId);
+    event ERC1155Withdrawn(uint256 indexed tokenId, address indexed token, address indexed to, uint256 assetTokenId, uint256 amount);
     event TargetAllowed(address indexed target, bool allowed);
     event AllowlistEnforced(bool enforced);
 
@@ -65,6 +69,8 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     {
         require(_registry != address(0), "HeroCard: registry invalido");
         require(_accountImplementation != address(0), "HeroCard: implementation invalida");
+        require(_registry.code.length > 0, "HeroCard: registry deve ser contrato");
+        require(_accountImplementation.code.length > 0, "HeroCard: implementation deve ser contrato");
 
         registry = IERC6551Registry(_registry);
         accountImplementation = _accountImplementation;
@@ -153,6 +159,12 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         uint256 quantity = tokenIds.length;
         require(quantity > 0 && quantity <= 50, "HeroCard: quantidade invalida");
         require(tokenIds.length == _tokenURIs.length, "HeroCard: quantidade de tokenIds e _tokenURIs deve ser igual");
+
+        for (uint256 i = 0; i < quantity; i++) {
+            for (uint256 j = i + 1; j < quantity; j++) {
+                require(tokenIds[i] != tokenIds[j], "HeroCard: tokenIds duplicados");
+            }
+        }
 
         for (uint256 i = 0; i < quantity; i++) {
             safeMint(to, tokenIds[i], _tokenURIs[i]);
@@ -283,9 +295,11 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         checkAllowlist(to)
     {
         _requireOwned(tokenId);
+        require(to != address(0), "HeroCard: endereco destino invalido");
         address tba = getAccount(tokenId, DEFAULT_SALT);
         // Retorno ignorado: falhas propagadas como revert por executeWithSignature
         IHeroCardAccount(tba).executeWithSignature(to, amount, "", 0, signature);
+        emit EthWithdrawn(tokenId, to, amount);
     }
 
     /// @notice Saca tokens ERC-20 da TBA para a conta designada.
@@ -300,10 +314,12 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         checkAllowlist(to)
     {
         _requireOwned(tokenId);
+        require(to != address(0), "HeroCard: endereco destino invalido");
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
         // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+        emit ERC20Withdrawn(tokenId, token, to, amount);
     }
 
     /// @notice Executa safeTransferFrom de um ERC-721 pertencente à TBA.
@@ -318,11 +334,13 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         checkAllowlist(to)
     {
         _requireOwned(tokenId);
+        require(to != address(0), "HeroCard: endereco destino invalido");
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory data =
             abi.encodeWithSelector(bytes4(keccak256("safeTransferFrom(address,address,uint256)")), tba, to, nftTokenId);
         // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(token, 0, data, 0, signature);
+        emit ERC721Withdrawn(tokenId, token, to, nftTokenId);
     }
 
     /// @notice Executa safeTransferFrom de ERC-1155 pertencente à TBA.
@@ -343,11 +361,13 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
         bytes calldata signature
     ) external nonReentrant checkAllowlist(to) {
         _requireOwned(tokenId);
+        require(to != address(0), "HeroCard: endereco destino invalido");
         address tba = getAccount(tokenId, DEFAULT_SALT);
         bytes memory callData =
             abi.encodeWithSelector(IERC1155.safeTransferFrom.selector, tba, to, assetTokenId, amount, data);
         // slither-disable-next-line unused-return
         IHeroCardAccount(tba).executeWithSignature(token, 0, callData, 0, signature);
+        emit ERC1155Withdrawn(tokenId, token, to, assetTokenId, amount);
     }
 
     /// @notice Interrompe aprovações (approve) de ERC-20 dadas pela TBA para um dado spender (zera a permissão).
