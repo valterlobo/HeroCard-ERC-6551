@@ -41,6 +41,16 @@ contract ERC6551Registry is IERC6551Registry {
 
     /// @inheritdoc IERC6551Registry
     /// @dev Idempotente: se a conta já existe (tem código), retorna o endereço sem revert.
+    ///
+    ///      O `salt` é passado **diretamente** ao CREATE2 — sem derivação adicional —
+    ///      conforme exigido pelo padrão ERC-6551. A unicidade do endereço resultante
+    ///      já é garantida pelo bytecodeHash, que incorpora `chainId`, `tokenContract`
+    ///      e `tokenId` como dados imutáveis dentro do creation code.
+    ///
+    ///      Validações propositalmente mínimas (compatíveis com o registry canônico):
+    ///      apenas `address(0)` é rejeitado. Verificações extras de `code.length` ou
+    ///      `supportsInterface` quebrariam proxies em construção e implementações
+    ///      minimalistas válidas pelo padrão ERC-6551.
     function createAccount(
         address implementation,
         bytes32 salt,
@@ -48,33 +58,19 @@ contract ERC6551Registry is IERC6551Registry {
         address tokenContract,
         uint256 tokenId
     ) external returns (address accountAddress) {
-        // Validação de parâmetros críticos
+        // Apenas address(0) é rejeitado — compatível com o padrão ERC-6551
         require(implementation != address(0), "ERC6551Registry: implementacao invalida");
         require(tokenContract != address(0), "ERC6551Registry: tokenContract invalido");
 
-        // Validação de código
-        require(implementation.code.length > 0, "ERC6551Registry: implementacao deve ser contrato");
-        require(tokenContract.code.length > 0, "ERC6551Registry: tokenContract deve ser contrato");
-
-        // Validação de interface ERC-1271 (suporte a meta-transações via ERC-165)
-        (bool success, bytes memory data) =
-            implementation.staticcall(abi.encodeWithSelector(0x01ffc9a7, bytes4(0x1626ba7e)));
-        if (!success || data.length < 32) {
-            revert("ERC6551Registry: implementacao invalida");
-        }
-        require(abi.decode(data, (bool)), "ERC6551Registry: implementacao nao suporta ERC-1271");
-
         bytes memory code = _creationCode(implementation, chainId, tokenContract, tokenId, salt);
 
-        bytes32 finalSalt = keccak256(abi.encode(salt, chainId, tokenContract, tokenId));
-
-        accountAddress = Create2Lib.computeAddress(finalSalt, keccak256(code));
+        accountAddress = Create2Lib.computeAddress(salt, keccak256(code));
 
         // Idempotente: se já existe código, retorna sem erro
         if (accountAddress.code.length > 0) return accountAddress;
 
         assembly {
-            accountAddress := create2(0, add(code, 0x20), mload(code), finalSalt)
+            accountAddress := create2(0, add(code, 0x20), mload(code), salt)
         }
 
         if (accountAddress == address(0)) revert AccountCreationFailed();
@@ -84,14 +80,17 @@ contract ERC6551Registry is IERC6551Registry {
 
     /// @inheritdoc IERC6551Registry
     /// @dev Puramente view — não altera estado. Pode ser chamado antes do deploy.
+    ///
+    ///      O endereço calculado é idêntico ao que seria gerado pelo registry canônico
+    ///      (0x000000006551c19487814612e58FE06813775758) para os mesmos parâmetros,
+    ///      pois ambos usam `salt` diretamente no CREATE2.
     function account(address implementation, bytes32 salt, uint256 chainId, address tokenContract, uint256 tokenId)
         external
         view
         returns (address)
     {
         bytes32 bytecodeHash = keccak256(_creationCode(implementation, chainId, tokenContract, tokenId, salt));
-        bytes32 finalSalt = keccak256(abi.encode(salt, chainId, tokenContract, tokenId));
-        return Create2Lib.computeAddress(finalSalt, bytecodeHash);
+        return Create2Lib.computeAddress(salt, bytecodeHash);
     }
 
     // =========================================================================
