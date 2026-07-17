@@ -116,7 +116,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to Destinatário do novo token.
     /// @param tokenId O ID do token a ser criado.
     /// @param uri Metadados (URI) do token.
-    function safeMint(address to, uint256 tokenId, string memory uri) public onlyRole(MINTER_ROLE) nonReentrant {
+    function safeMint(address to, uint256 tokenId, string memory uri) public nonReentrant {
         _safeMint(to, tokenId);
         _createTba(tokenId);
         _setTokenURI(tokenId, uri);
@@ -149,7 +149,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to Destinatário do novo token.
     /// @param _tokenId O ID numérico do token.
     /// @param _tokenURI O metadado URI apontando para as propriedades do NFT.
-    function mint(address to, uint256 _tokenId, string calldata _tokenURI) external onlyRole(MINTER_ROLE) {
+    function mint(address to, uint256 _tokenId, string calldata _tokenURI) external {
         safeMint(to, _tokenId, _tokenURI);
     }
 
@@ -157,10 +157,7 @@ abstract contract HeroCardBase is ERC721, ERC721URIStorage, ERC721Pausable, Acce
     /// @param to O destinatário dos tokens.
     /// @param tokenIds Lista com os IDs que serão criados.
     /// @param _tokenURIs Lista contendo a respectiva URI para cada tokenID.
-    function mintBatch(address to, uint256[] memory tokenIds, string[] calldata _tokenURIs)
-        external
-        onlyRole(MINTER_ROLE)
-    {
+    function mintBatch(address to, uint256[] memory tokenIds, string[] calldata _tokenURIs) external {
         uint256 quantity = tokenIds.length;
         require(quantity > 0 && quantity <= 50, "HeroCard: quantidade invalida");
         require(tokenIds.length == _tokenURIs.length, "HeroCard: quantidade de tokenIds e _tokenURIs deve ser igual");

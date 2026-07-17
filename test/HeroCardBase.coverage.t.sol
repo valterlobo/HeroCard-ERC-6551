@@ -500,7 +500,8 @@ contract HeroCardBaseCoverageTest is Test {
         vm.stopPrank();
 
         uint256 deadline = block.timestamp + 1 hours;
-        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("safeTransferFrom(address,address,uint256)")), tba, bob, nftId);
+        bytes memory data =
+            abi.encodeWithSelector(bytes4(keccak256("safeTransferFrom(address,address,uint256)")), tba, bob, nftId);
         bytes memory signature = _signExecute(alicePrivateKey, tba, address(mockNFT), 0, data, 0, deadline, 0);
 
         vm.prank(alice);
