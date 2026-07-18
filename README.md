@@ -1,198 +1,345 @@
-# HeroCard — ERC-6551 Token Bound Accounts
+# HeroCard — Token Bound Accounts (ERC-6551)
 
-Projeto **Foundry** que implementa o padrão [ERC-6551](https://eips.ethereum.org/EIPS/eip-6551) para criar cartões virtuais NFT (ERC-721) com carteira inteligente própria — capaz de acumular ETH, ERC-20, ERC-721 e ERC-1155.
+> NFTs com carteira inteligente integrada. Cada cartão é um ERC-721 com uma conta própria capaz de receber e movimentar ETH, ERC-20, ERC-721 e ERC-1155.
 
-Disponível em duas variantes:
-- **`HeroCard`** — NFT transferível padrão.
-- **`HeroCardSBT`** — Variante Soulbound (intransferível); apenas mint e burn são permitidos, eliminando o risco de transferência acidental de controle da TBA.
-
-## 🚀 Novidades e Melhorias Recentes
-- **Suporte a `executeBatch`**: As contas Token Bound agora podem executar dezenas de transações de forma atômica (se uma falhar, todas são revertidas).
-- **Proteção contra Ownership Cycles**: Prevenção total para que a TBA não transfira o próprio NFT-mãe, evitando travamentos irreversíveis de controle.
-- **Segurança 100% Testada**: Os contratos essenciais `ERC6551Account` e `ERC6551Registry` atingiram a marca de **100% de cobertura de código**, incluindo cobertura de branches, garantindo o rigor na validação de permissões e EIP-1271.
-
-## 🚧 Roadmap / TODO
-- [ ] Testar integração do registry com outras coleções NFT existentes.
-- [ ] Integrar metadados reais, atributos dinâmicos e imagens ricas nos NFTs.
-- [ ] Desenvolver frontend/dApp em React/Next.js para visualização simplificada do inventário das TBAs.
-- [ ] Refatorar a criação das TBAs para referenciar o registry canônico ERC-6551 (`0x000000006551c19487814612e58FE06813775758`) por padrão nas redes que o suportam.
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.24-blue)](https://soliditylang.org)
+[![OpenZeppelin](https://img.shields.io/badge/OpenZeppelin-v5-green)](https://openzeppelin.com/contracts)
+[![ERC-6551](https://img.shields.io/badge/EIP-6551-orange)](https://eips.ethereum.org/EIPS/eip-6551)
+[![Foundry](https://img.shields.io/badge/Foundry-latest-red)](https://book.getfoundry.sh)
+[![Testes](https://img.shields.io/badge/testes-254-brightgreen)](#testes)
 
 ---
 
-## 🏗 Arquitetura
+## O que é o HeroCard?
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│              HeroCard / HeroCardSBT (ERC-721)               │
-│                                                             │
-│  mint() ──► cria TBA automaticamente via ERC6551Registry    │
-│                                                             │
-│  Card #0 ──► TBA-0 (ERC6551Account)                         │
-│  Card #1 ──► TBA-1 (ERC6551Account)                         │
-│  Card #N ──► TBA-N (ERC6551Account)                         │
-└─────────────────────────────────────────────────────────────┘
-                          │
-              ┌───────────▼───────────────┐
-              │     ERC6551Registry       │
-              │  (CREATE2 determinístico) │
-              └───────────────────────────┘
-                          │
-         ┌────────────────▼────────────────┐
-         │        ERC6551Account           │
-         │                                 │
-         │  - Recebe ETH, ERC-20, ERC-721, │
-         │    ERC-1155                     │
-         │  - execute() / executeBatch()   │
-         │  - owner = ownerOf(NFT)         │
-         │  - isValidSigner() (ERC-1271)   │
-         │  - Sem Ownership Cycles         │
-         └─────────────────────────────────┘
+O padrão [ERC-6551](https://eips.ethereum.org/EIPS/eip-6551) permite que qualquer NFT tenha uma **Token Bound Account (TBA)** — um contrato inteligente determinístico vinculado ao token. Quem possui o NFT controla a conta; transferir o NFT transfere automaticamente o controle de tudo que está dentro dela.
+
+O HeroCard implementa esse padrão em duas variantes:
+
+| Contrato | Tipo | Transferência |
+|---|---|---|
+| `HeroCard` | NFT padrão ERC-721 | ✅ Transferível |
+| `HeroCardSBT` | Soulbound Token | ❌ Intransferível e indestrutível |
+
+---
+
+## Arquitetura
+
+```
+┌──────────────────────────────────────────────────┐
+│           HeroCard / HeroCardSBT (ERC-721)       │
+│                                                  │
+│  mint(to, tokenId, uri)                          │
+│    └─► cria TBA automaticamente via Registry     │
+│                                                  │
+│  Card #1  ──►  TBA-1  (HeroCardAccount)          │
+│  Card #2  ──►  TBA-2  (HeroCardAccount)          │
+│  Card #N  ──►  TBA-N  (HeroCardAccount)          │
+└──────────────────────────────────────────────────┘
+                      │
+         ┌────────────▼────────────┐
+         │     ERC6551Registry     │
+         │   CREATE2 determinístico│
+         │   compatível com o      │
+         │   registry canônico     │
+         │  0x000000006551c194...  │
+         └────────────┬────────────┘
+                      │
+         ┌────────────▼────────────┐
+         │     HeroCardAccount     │
+         │                         │
+         │  execute()              │  ← chamada direta pelo owner
+         │  executeBatch()         │  ← até 50 operações atômicas
+         │  executeWithSignature() │  ← meta-transação com deadline
+         │  isValidSignature()     │  ← ERC-1271
+         │  token()                │  ← retorna chainId, NFT, tokenId
+         │                         │
+         │  owner = ownerOf(NFT)   │
+         └─────────────────────────┘
 ```
 
-### Contratos Principais
+### Contratos
 
-| Arquivo | Descrição |
-| --- | --- |
-| `ERC6551Registry.sol` | Registry com `CREATE2` determinístico para previsibilidade do endereço das carteiras. |
-| `ERC6551Account.sol` | Implementação da carteira inteligente vinculada (Token Bound Account). |
-| `HeroCardBase.sol` | Contrato ERC-721 base abstrato que consolida toda a integração TBA e rotinas comuns. |
-| `HeroCard.sol` | Implementação final do NFT transferível. |
-| `HeroCardSBT.sol` | Implementação final do NFT Soulbound (intransferível). |
+| Arquivo | Responsabilidade |
+|---|---|
+| `ERC6551Registry.sol` | Deploya TBAs via CREATE2. Compatível com o registry canônico oficial. |
+| `ERC6551Account.sol` | Lógica base da TBA: `execute`, `executeBatch`, proteção ownership cycle, ERC-1271. |
+| `HeroCardAccount.sol` | Subclasse de `ERC6551Account` com suporte a meta-transações (`executeWithSignature`). |
+| `HeroCardBase.sol` | Contrato NFT abstrato com depósitos, saques, allowlist e gestão de TBA. |
+| `HeroCard.sol` | NFT transferível. Herda `HeroCardBase`. |
+| `HeroCardSBT.sol` | NFT Soulbound. Somente mint; transferência e burn bloqueados. |
 
 ---
 
-## 💻 Setup e Instalação
+## Instalação
 
-**Pré-requisitos**:
-- [Foundry](https://book.getfoundry.sh/getting-started/installation) instalado e atualizado.
+**Pré-requisito:** [Foundry](https://book.getfoundry.sh/getting-started/installation)
 
 ```bash
-git clone <repo-url>
-cd card-erc6551
+git clone https://github.com/valterlobo/HeroCard-ERC-6551.git
+cd HeroCard-ERC-6551
 
-# Instala dependências do Foundry
+# Instala dependências
 forge install foundry-rs/forge-std --no-commit
 forge install OpenZeppelin/openzeppelin-contracts --no-commit
 
-# Compila o projeto
+# Compila
 forge build
 ```
 
 ---
 
-## 🧪 Testes e Cobertura
+## Testes
 
-O projeto conta com mais de **180 testes unitários** e de integração exaustivos, organizados em 15 suítes modulares para garantir cobertura máxima de todas as edge-cases.
+254 testes em 17 suítes, cobrindo funcionalidade, segurança, branches e fuzzing.
 
 ```bash
-# Roda todos os testes
+# Todos os testes
 forge test
 
-# Roda com trace detalhado
+# Com trace detalhado
 forge test -vvv
 
-# Gera relatório de gas
+# Relatório de gas
 forge test --gas-report
 
-# Roda relatório de cobertura
+# Cobertura de código
 forge coverage
 ```
 
-### Métricas de Cobertura de Código
-
-Após as últimas atualizações de segurança e implementação dos testes exaustivos sobre o `executeBatch` e proteções estruturais, os resultados atualizados comprovam a robustez do core:
-
-| Contrato | Linhas | Branches | Funções |
-| --- | --- | --- | --- |
-| `ERC6551Account.sol` | **100%** | **100%** | **100%** |
-| `ERC6551Registry.sol` | **100%** | **100%** | **100%** |
-| `HeroCardSBT.sol` | **100%** | **100%** | **100%** |
-| `HeroCard.sol` | **100%** | **100%** | **100%** |
-| `HeroCardBase.sol` | 98.7% | 100% | 95.8% |
-
-> Todas as mitigacões de Reentrância, Falhas de Signatures (EIP-1271) e Riscos de Transferência (Tokens e Aprovações pendentes) estão mapeadas nos testes!
+| Suíte | Testes | Área |
+|---|:---:|---|
+| `HeroCardBase.coverage.t.sol` | 47 | Saques, depósitos, allowlist, deadline, eventos |
+| `HeroCard.branches.t.sol` | 42 | Todos os branches de `HeroCardBase` |
+| `HeroCard.t.sol` | 34 | Fluxo completo: mint → TBA → depósito → saque |
+| `ERC6551Account.ownershipcycle.t.sol` | 18 | Ownership cycle: transfer, approve, setApprovalForAll + fuzz |
+| `ERC6551Account.branches.t.sol` | 18 | `executeBatch`: saldo, atomicidade, limite, fuzz |
+| `ERC6551Account.reentrancy_access.t.sol` | 14 | Reentrância, `msg.sender` vs `tx.origin` |
+| `ERC6551Account.initialization.t.sol` | 12 | Proxy imutável, bytecode, frontrunning |
+| `HeroCardAccount.coverage.t.sol` | 10 | `executeWithSignature`, deadline, replay |
+| `HeroCardSBT.t.sol` | 8 | Soulbound: burn por owner/operador/global bloqueado |
+| Outros (9 suítes) | 51 | Nonce, delegatecall, assinatura, registry, cobertura |
 
 ---
 
-## 🚀 Deploy em Testnet (Sepolia)
+## Deploy
 
-Configure seu `.env` a partir do modelo `.env.example`:
+Configure as variáveis de ambiente:
 
 ```bash
 cp .env.example .env
-# Adicione suas variáveis RPC_URL, PRIVATE_KEY e ETHERSCAN_API_KEY
+# Preencha: PRIVATE_KEY, RPC_URL, ETHERSCAN_API_KEY
+# Opcional: REGISTRY_ADDRESS (padrão: registry canônico ERC-6551)
 ```
 
-Script de Deploy usando o Foundry:
+Execute o deploy:
+
 ```bash
 source .env
-forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --verify --etherscan-api-key $ETHERSCAN_API_KEY
+forge script script/Deploy.s.sol \
+  --rpc-url $RPC_URL \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+```
+
+O script detecta automaticamente se o registry canônico (`0x000000006551c19487814612e58FE06813775758`) está disponível na rede e o reutiliza. Se não estiver, faz deploy de um registry local compatível.
+
+**Saída esperada:**
+
+```
+=== Deploy HeroCard ERC-6551 ===
+[1/3] Reutilizando registry existente: 0x000000006551c19487814612e58FE06813775758
+[2/3] Deploy da HeroCardAccount...
+[3/3] Deploy do HeroCard ERC-721...
+
+=== Resumo do Deploy ===
+ERC6551Registry:     0x000000006551c19487814612e58FE06813775758
+HeroCardAccount impl: 0xAbCd...
+HeroCard NFT:        0x1234...
+TBA do tokenId 1:    0x5678...
 ```
 
 ---
 
-## 🛡 Segurança e Conceitos Importantes
+## Como usar
 
-### 1. Dinâmica de Transferência (Atenção redobrada)
-O dono da carteira TBA é SEMPRE o titular do NFT atrelado, `ownerOf(tokenId)`. Portanto, se você possuir um **`HeroCard`** (versão transferível) e vender ou transferir esse NFT para outra carteira, **a TBA e todos os ativos acumulados nela irão magicamente para o novo dono!**
-- 🛑 **Atenção**: Sempre se certifique de sacar fundos (ETH, ERC-20, NFTs) ou revogar aprovações de gasto da carteira inteligente antes de transferir o `HeroCard`.
-- Para projetos nos quais não deseja correr o risco do usuário perder os próprios fundos, adote a versão atrelada à alma: **`HeroCardSBT`**.
+### 1. Mintar um cartão
 
-### 2. Endereço Determinístico (CREATE2)
-O endereço público da TBA para cada ID de NFT do `HeroCard` é previsível (através da instrução `CREATE2`). Isso permite que os jogadores e sistemas depositem fundos/itens em uma carteira "fantasma" que ainda não foi concretizada na blockchain. Assim que a primeira ação que exige estado (como o Deploy ou Minting) ocorrer, a TBA é gerada debaixo do capô.
-
-### 3. Bloqueio de Ownership Cycles
-Para evitar um bloqueio lógico do contrato ("TBA ser proprietária do próprio NFT HeroCard atrelado a ela"), o método de envio foi projetado para negar tentativas intrínsecas de transferir seu próprio NFT. O `ERC6551Account` mapeia localmente as chamadas para `transferFrom` e `safeTransferFrom` garantindo segurança.
-
-### 4. Fluxo de assinatura e condições de execução das TBAs
-Para integradores, o fluxo de execução das TBAs segue as regras abaixo:
-
-1. A TBA só é válida no chain em que foi criada originalmente. Se o `chainId` embutido no bytecode da TBA não coincidir com `block.chainid`, a execução é rejeitada.
-2. O signer autorizado é o dono atual do NFT vinculado ao tokenId. A validação é feita por `isValidSigner()` e pela assinatura no payload.
-3. A assinatura é calculada sobre um hash estruturado contendo:
-   - `block.chainid`
-   - `address(this)` (o endereço da TBA)
-   - `to`
-   - `value`
-   - `keccak256(data)`
-   - `operation`
-   - `deadline`
-   - `state` (nonce interno da TBA)
-4. O payload deve ser assinado com o formato Ethereum Signed Message (`EthSignedMessage`), e o valor de `deadline` deve estar no futuro para que a assinatura seja aceita.
-5. As operações suportadas pela TBA são apenas `CALL` (`operation = 0`). `DELEGATECALL` e `CREATE` são rejeitados.
-6. O estado `_state` é incrementado antes da execução para evitar replay de assinatura para a mesma TBA.
-7. O contrato bloqueia tentativas de criar ownership cycles, incluindo transferências diretas e aprovações de `boundTokenId` que possam levar o NFT vinculado para dentro da própria TBA.
-
-#### Exemplo de payload para integradores
 ```solidity
-bytes32 structHash = keccak256(
-    abi.encode(
-        block.chainid,
-        tbaAddress,
-        to,
-        value,
-        keccak256(data),
-        uint8(0),
-        deadline,
-        state
-    )
-);
+// Mint único
+heroCard.mint(destinatario, tokenId, "ipfs://QmMetadata");
 
-bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(structHash);
+// Mint em lote (máximo 50)
+uint256[] memory ids = new uint256[](3);
+string[] memory uris = new string[](3);
+ids[0] = 1; ids[1] = 2; ids[2] = 3;
+uris[0] = "ipfs://Qm1"; uris[1] = "ipfs://Qm2"; uris[2] = "ipfs://Qm3";
+heroCard.mintBatch(destinatario, ids, uris);
 ```
 
-#### Regras práticas para quem integra
-- Sempre use a TBA correta para o tokenId do HeroCard correspondente.
-- Nunca reutilize uma assinatura após o `deadline` expirar.
-- Não confie apenas no `to` do payload; valide o conteúdo do `data` e o valor `value` antes de relatar a transação.
-- Para operações financeiras, considere um fluxo de relayer com validação adicional de destino e limite de valor.
-- Em integrações front-end, prefira exibir o `deadline`, o `state` e o `to` da execução para o usuário antes de confirmar.
+A TBA é criada automaticamente no mint via `_createTba`.
+
+### 2. Consultar a TBA
+
+```solidity
+// Endereço da TBA (determinístico, pode ser consultado antes do deploy)
+address tba = heroCard.getAccount(tokenId, heroCard.DEFAULT_SALT());
+
+// Verificar se a TBA foi deployada
+bool criada = heroCard.isAccountCreated(tokenId, heroCard.DEFAULT_SALT());
+
+// Criar a TBA se por algum motivo não foi criada no mint
+heroCard.createAccountIfNeeded(tokenId, heroCard.DEFAULT_SALT());
+```
+
+### 3. Depositar ativos na TBA
+
+```solidity
+// ETH
+heroCard.depositEth{value: 1 ether}(tokenId);
+
+// ERC-20 (requer approve prévio)
+token.approve(address(heroCard), amount);
+heroCard.depositERC20(tokenId, address(token), amount);
+
+// ERC-721 (requer approve prévio)
+nft.approve(address(heroCard), nftId);
+heroCard.depositERC721(tokenId, address(nft), nftId);
+
+// ERC-1155 (requer setApprovalForAll prévio)
+token1155.setApprovalForAll(address(heroCard), true);
+heroCard.depositERC1155(tokenId, address(token1155), assetId, amount);
+```
+
+> A TBA deve existir antes de depositar. Use `createAccountIfNeeded` se necessário.
+
+### 4. Sacar ativos (meta-transação)
+
+Os saques usam `executeWithSignature` — o owner assina o payload e qualquer relayer pode submeter:
+
+```solidity
+// 1. Montar o hash estruturado (off-chain, no frontend ou relayer)
+bytes32 structHash = keccak256(abi.encode(
+    block.chainid,
+    tbaAddress,   // endereço da TBA, não do HeroCard
+    to,
+    value,
+    keccak256(data),
+    uint8(0),     // operation: 0 = CALL
+    deadline,
+    state         // nonce atual da TBA (chamar ERC6551Account.state())
+));
+bytes32 ethHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+bytes memory signature = owner.sign(ethHash);
+
+// 2. Submeter (qualquer relayer pode chamar)
+heroCard.withdrawEth(tokenId, destinatario, amount, deadline, signature);
+heroCard.withdrawERC20(tokenId, address(token), destinatario, amount, deadline, signature);
+heroCard.withdrawERC721(tokenId, address(nft), destinatario, nftId, deadline, signature);
+heroCard.withdrawERC1155(tokenId, address(token1155), destinatario, assetId, amount, deadline, data, signature);
+```
+
+### 5. Chamar a TBA diretamente
+
+```solidity
+// O owner chama execute() diretamente na TBA
+ERC6551Account tba = ERC6551Account(payable(heroCard.getAccount(tokenId, DEFAULT_SALT)));
+
+// Chamada simples
+tba.execute(enderecoDestino, valorEth, calldata, 0);
+
+// Batch atômico (até 50 operações; se uma falhar, todas revertem)
+address[] memory targets = new address[](2);
+uint256[] memory values  = new uint256[](2);
+bytes[]   memory data    = new bytes[](2);
+uint8[]   memory ops     = new uint8[](2);
+// ... preencher arrays ...
+tba.executeBatch(targets, values, data, ops);
+```
+
+### 6. Revogar aprovações pendentes
+
+```solidity
+// Revogar approve de ERC-20
+heroCard.revokeERC20Approvals(tokenId, address(token), spender, deadline, signature);
+
+// Revogar setApprovalForAll de ERC-721/1155
+heroCard.revokeERC721Operators(tokenId, address(nft), operator, deadline, signature);
+```
 
 ---
 
-## 📚 Referências
+## Segurança
 
-- [EIP-6551: Non-fungible Token Bound Accounts](https://eips.ethereum.org/EIPS/eip-6551)
-- [Reference Implementation Github](https://github.com/erc6551/reference)
-- [OpenZeppelin ERC-721](https://docs.openzeppelin.com/contracts/5.x/erc721)
-- [Artigo Introdutório no Dev.to (Valter Lobo)](https://dev.to/valterlobo/transformando-nfts-em-carteiras-inteligentes-erc-6551-e-token-bound-accounts-tbas-h1p)
+### ⚠️ Transferência de HeroCard transfere tudo dentro da TBA
+
+O owner da TBA é sempre o `ownerOf(tokenId)`. Ao transferir um `HeroCard`:
+- O controle de toda a TBA passa para o novo dono
+- ETH, tokens e NFTs dentro da TBA vão junto
+
+**Sempre saque os ativos antes de vender ou transferir o NFT.**
+
+Para evitar esse risco por design, use `HeroCardSBT` — o token não pode ser transferido.
+
+### Proteções implementadas
+
+**Ownership cycle:** a TBA não pode transferir o próprio NFT que a controla. A proteção cobre três vetores:
+- `transferFrom` e `safeTransferFrom` (bloqueio direto)
+- `approve(spender, boundTokenId)` — bloqueia aprovação do próprio tokenId
+- `setApprovalForAll(operator, true)` — bloqueia habilitação global
+
+**Replay de assinatura:** o hash inclui `chainId`, endereço da TBA, `deadline` e `_state` (nonce). Uma assinatura não pode ser reutilizada em outra chain, em outra TBA, após o deadline ou após já ter sido usada.
+
+**Reentrância:** todas as funções externas de `HeroCardBase` e `HeroCardAccount` usam `nonReentrant`.
+
+**Allowlist de destinos (opcional):** o admin pode ativar `enforceAllowlist` para restringir os endereços para os quais saques e execuções podem ser enviados.
+
+```solidity
+// Admin ativa a allowlist
+heroCard.setEnforceAllowlist(true);
+
+// Admin autoriza um destino específico
+heroCard.setAllowedTarget(enderecoPermitido, true);
+```
+
+**Operações suportadas pela TBA:** apenas `CALL` (`operation = 0`). `DELEGATECALL` e `CREATE` são rejeitados.
+
+**Compatibilidade de chain:** a TBA só opera na chain em que foi criada. Se `chainId` embutido no bytecode divergir de `block.chainid`, todas as operações revertem com `WrongChain`.
+
+### HeroCardSBT — Soulbound Token
+
+O `HeroCardSBT` sobrescreve `_update` para bloquear qualquer movimento exceto mint:
+
+```solidity
+require(from == address(0), "HeroCardSBT: Transferencia e burn nao permitidos (Soulbound)");
+```
+
+Isso inclui burn — um operador aprovado não pode destruir o SBT do dono.
+
+---
+
+## Registry e endereços determinísticos
+
+O endereço da TBA é calculado deterministicamente pelo CREATE2 e pode ser conhecido antes do deploy:
+
+```solidity
+address tba = heroCard.getAccount(tokenId, DEFAULT_SALT);
+// tba é o mesmo endereço que o registry canônico retornaria
+// para os mesmos parâmetros (implementation, salt, chainId, tokenContract, tokenId)
+```
+
+O registry do HeroCard usa `salt` diretamente no CREATE2 — **sem derivação adicional** — garantindo que os endereços gerados sejam idênticos aos do registry canônico oficial (`0x000000006551c19487814612e58FE06813775758`). Ferramentas como o Tokenbound SDK e explorers compatíveis com ERC-6551 calculam o mesmo endereço.
+
+> O registry canônico é usado em produção sempre que estiver disponível na rede (mainnet, Sepolia, etc.). O registry local é um fallback para redes onde o canônico ainda não foi deployado.
+
+---
+
+## Referências
+
+- [EIP-6551 — Token Bound Accounts](https://eips.ethereum.org/EIPS/eip-6551)
+- [erc6551/reference — implementação oficial](https://github.com/erc6551/reference)
+- [Tokenbound SDK e documentação](https://docs.tokenbound.org)
+- [OpenZeppelin Contracts v5](https://docs.openzeppelin.com/contracts/5.x)
+- [Foundry Book](https://book.getfoundry.sh)
+- [Artigo introdutório (Valter Lobo — dev.to)](https://dev.to/valterlobo/transformando-nfts-em-carteiras-inteligentes-erc-6551-e-token-bound-accounts-tbas-h1p)
