@@ -10,6 +10,8 @@
 
 ---
 
+![](erc-6551-flow.png)
+
 ## O que é o HeroCard?
 
 O padrão [ERC-6551](https://eips.ethereum.org/EIPS/eip-6551) permite que qualquer NFT tenha uma **Token Bound Account (TBA)** — um contrato inteligente determinístico vinculado ao token. Quem possui o NFT controla a conta; transferir o NFT transfere automaticamente o controle de tudo que está dentro dela.
